@@ -4,15 +4,21 @@ import { applyFilters } from "../../lib/filter.js";
 
 type ChartSpec = Extract<UiComponentSpec, { type: "chart" }>;
 
+/**
+ * Series colours as tokens, not literals: SVG `fill`/`stroke` accept `var()`, so
+ * the chart re-colours itself on a theme switch with no JS involved. The two
+ * palettes are defined in styles.css — the dark yellow and cyan are far too weak
+ * against a white panel to reuse as-is.
+ */
 const COLORS = [
-  "#5b8cff",
-  "#00d3a7",
-  "#ffb454",
-  "#ff6b6b",
-  "#a78bfa",
-  "#22d3ee",
-  "#f472b6",
-  "#facc15",
+  "var(--series-1)",
+  "var(--series-2)",
+  "var(--series-3)",
+  "var(--series-4)",
+  "var(--series-5)",
+  "var(--series-6)",
+  "var(--series-7)",
+  "var(--series-8)",
 ] as const;
 const WIDTH = 600;
 const HEIGHT = 260;

@@ -1,7 +1,15 @@
 import { useState } from "react";
 import type { Dataset, Source } from "../../contract/dataset.js";
 
-const DOT_COLORS = ["#5b8cff", "#00d3a7", "#ffb454", "#ff6b6b", "#c792ea", "#4fd1c5"] as const;
+/** Theme tokens rather than literals — see the note on Chart's COLORS. */
+const DOT_COLORS = [
+  "var(--series-1)",
+  "var(--series-2)",
+  "var(--series-3)",
+  "var(--series-4)",
+  "var(--series-5)",
+  "var(--series-6)",
+] as const;
 
 export function SourceList({ dataset }: { dataset: Dataset | undefined }) {
   const sources = dataset?.sources ?? [];

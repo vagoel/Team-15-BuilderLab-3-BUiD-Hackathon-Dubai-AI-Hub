@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { applyTheme, getTheme, resolvedTheme, type Theme } from "../lib/theme.js";
 import { useLoom } from "../store.js";
 import { useVoiceSession } from "../voice/useVoiceSession.js";
 
@@ -43,7 +44,10 @@ export function ChatPanel() {
 
       <header className="chat-head">
         <span className="chat-word">Loom</span>
-        <span className="chat-dot" style={{ background: dotColor }} title={`voice: ${voiceStatus}`} />
+        <div className="chat-head-right">
+          <ThemeToggle />
+          <span className="chat-dot" style={{ background: dotColor }} title={`voice: ${voiceStatus}`} />
+        </div>
       </header>
 
       {error && (
@@ -123,7 +127,79 @@ export function ChatPanel() {
   );
 }
 
+/**
+ * Light / dark switch. Holds only the current choice — the actual palette lives
+ * in styles.css and is selected by an attribute on <html>, so flipping it costs
+ * one DOM write and no re-render below this component.
+ */
+function ThemeToggle() {
+  const [theme, setTheme] = useState<Theme>(getTheme);
+  const showing = resolvedTheme(theme);
+
+  // "system" resolves live, so a mid-session OS change has to redraw the icon.
+  useEffect(() => {
+    if (theme !== "system" || typeof matchMedia !== "function") return;
+    const query = matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => setTheme("system");
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, [theme]);
+
+  const next: Theme = showing === "dark" ? "light" : "dark";
+
+  return (
+    <button
+      type="button"
+      className="chat-theme"
+      onClick={() => {
+        applyTheme(next);
+        setTheme(next);
+      }}
+      title={`Switch to ${next} mode`}
+      aria-label={`Switch to ${next} mode`}
+    >
+      {showing === "dark" ? <SunIcon /> : <MoonIcon />}
+    </button>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round">
+      <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a7 7 0 1 0 10.5 10.5z" />
+    </svg>
+  );
+}
+
 const chatLocalStyles = `
+.chat-head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chat-theme {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  color: var(--dim);
+  transition: color 0.2s, background 0.2s;
+}
+.chat-theme:hover {
+  color: var(--ink);
+  background: var(--panel-2);
+}
 .chat-head {
   display: flex;
   align-items: center;

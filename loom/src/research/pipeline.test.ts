@@ -88,24 +88,33 @@ describe("runResearch — parallel fetching", () => {
 
     const resultPromise = runResearch({ question: "parallel test", seedUrls, fields: priceAndName });
 
-    // Synchronously (before we resolve anything) every source's extract call
+    // Synchronously (before we resolve anything) every source's first request
     // must already have been dispatched — proof this is Promise.allSettled
-    // fan-out, not a sequential await chain.
-    const extractCalls = calls.filter((u) => u.includes("/web/extract"));
-    expect(extractCalls.length).toBe(seedUrls.length);
+    // fan-out, not a sequential await chain. The first request per source is the
+    // markdown scrape, which is tier 1 of processSource.
+    const scrapeCalls = calls.filter((u) => u.includes("/web/scrape/markdown"));
+    expect(scrapeCalls.length).toBe(seedUrls.length);
     expect(pending.length).toBeGreaterThanOrEqual(seedUrls.length);
     expect(pending.every((_, i) => calls[i] !== undefined)).toBe(true);
 
-    // Now let everything settle.
+    // Now let everything settle. `pending` keeps growing as each source falls
+    // from the scrape tier through to extract, so this drains wave by wave and
+    // re-reads pending.length every iteration rather than snapshotting it.
     for (let i = 0; i < pending.length; i++) {
       const url = calls[i] ?? "";
       const entry = pending[i];
       if (!entry) continue;
       if (url.includes("/web/extract")) {
         entry.resolve(jsonResponse({ status: "ok", data: { records: [{ price: 1, name: "x" }] } }));
+      } else if (url.includes("/web/scrape/markdown")) {
+        // No tables on this page — the source falls through to the extract tier.
+        entry.resolve(jsonResponse({ success: true, markdown: "# prose only" }));
       } else {
         entry.resolve(jsonResponse({ message: "no brand" }, 400));
       }
+      // Give the settled promise a turn so the next tier's fetch is dispatched
+      // and appended to `pending` before the loop looks again.
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
 
     const summary = await resultPromise;
@@ -222,16 +231,18 @@ describe("cached()", () => {
  * the real key was out of credits during the whole build.
  */
 describe("runResearch — heuristic fallback is not used where there is definitively nothing to read", () => {
-  it("skips the markdown fallback entirely on a 404 — the page does not exist on either endpoint", async () => {
-    let scrapeCalls = 0;
+  it("stops after the scrape on a 404 — the page does not exist on either endpoint", async () => {
+    // The scrape is tier 1, so a definitive status arrives there first. Spending
+    // the ~22s extract budget afterwards buys a guaranteed second failure.
+    let extractCalls = 0;
     const fetchMock = vi.fn(async (url: unknown): Promise<Response> => {
       const u = String(url);
       if (u.includes("/web/extract")) {
+        extractCalls += 1;
         return jsonResponse({ message: "Target page returned a 404", error_code: "NOT_FOUND" }, 404);
       }
       if (u.includes("/web/scrape/markdown")) {
-        scrapeCalls += 1;
-        return jsonResponse({ success: true, markdown: "# Should never be read\n\nPrice: 1\nName: ghost\n".repeat(3) });
+        return jsonResponse({ message: "Target page returned a 404", error_code: "NOT_FOUND" }, 404);
       }
       return jsonResponse({ message: "no brand" }, 400);
     });
@@ -243,23 +254,23 @@ describe("runResearch — heuristic fallback is not used where there is definiti
       fields: priceAndName,
     });
 
-    expect(scrapeCalls).toBe(0);
+    expect(extractCalls).toBe(0);
     expect(summary.recordCount).toBe(0);
     const dataset = getDataset(summary.datasetId)!;
     expect(dataset.sources[0]?.error).toBeTruthy();
     expect(dataset.sources[0]?.fetchedAt).toBeUndefined();
   });
 
-  it("skips the markdown fallback entirely on a 401 — the key has no credits left on either endpoint", async () => {
-    let scrapeCalls = 0;
+  it("stops after the scrape on a 401 — the key has no credits left on either endpoint", async () => {
+    let extractCalls = 0;
     const fetchMock = vi.fn(async (url: unknown): Promise<Response> => {
       const u = String(url);
       if (u.includes("/web/extract")) {
+        extractCalls += 1;
         return jsonResponse({ message: "credits have been completely depleted", error_code: "USAGE_EXCEEDED" }, 401);
       }
       if (u.includes("/web/scrape/markdown")) {
-        scrapeCalls += 1;
-        return jsonResponse({ success: true, markdown: "# Should never be read\n\nPrice: 1\nName: ghost\n".repeat(3) });
+        return jsonResponse({ message: "credits have been completely depleted", error_code: "USAGE_EXCEEDED" }, 401);
       }
       return jsonResponse({ message: "no brand" }, 400);
     });
@@ -271,10 +282,35 @@ describe("runResearch — heuristic fallback is not used where there is definiti
       fields: priceAndName,
     });
 
-    expect(scrapeCalls).toBe(0);
+    expect(extractCalls).toBe(0);
     expect(summary.recordCount).toBe(0);
     const dataset = getDataset(summary.datasetId)!;
     expect(dataset.sources[0]?.error).toBeTruthy();
+  });
+
+  it("still refuses to fabricate a row when only the extract path returns 401", async () => {
+    // A scrape that succeeds while extract 401s must not reach the heuristic —
+    // that is the path that manufactures a row describing nothing that was read.
+    const fetchMock = vi.fn(async (url: unknown): Promise<Response> => {
+      const u = String(url);
+      if (u.includes("/web/extract")) {
+        return jsonResponse({ message: "credits have been completely depleted", error_code: "USAGE_EXCEEDED" }, 401);
+      }
+      if (u.includes("/web/scrape/markdown")) {
+        return jsonResponse({ success: true, markdown: "# Should never be read\n\nPrice: 1\nName: ghost\n".repeat(3) });
+      }
+      return jsonResponse({ message: "no brand" }, 400);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const summary = await runResearch({
+      question: "401 extract only",
+      seedUrls: ["https://depleted-401.test/page"],
+      fields: priceAndName,
+    });
+
+    expect(summary.recordCount).toBe(0);
+    expect(getDataset(summary.datasetId)!.sources[0]?.error).toBeTruthy();
   });
 
   it("does fall back and extracts a real row on a plausibly transient failure (5xx)", async () => {

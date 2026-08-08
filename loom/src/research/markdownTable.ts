@@ -130,18 +130,23 @@ function shapesConflict(expected: CellShape, actual: CellShape): boolean {
  * Since the omitted positions are not recoverable from the markdown alone, try
  * every contiguous placement of the row's cells and keep the one that conflicts
  * least with the shapes the last full-width row established for each column.
- * Columns before the chosen window inherit from that row; columns after it are
- * left empty. Ties prefer the later start, because a dropped leading cell is far
- * more common than a dropped trailing one.
+ * Ties prefer the later start, because a dropped leading cell is far more common
+ * than a dropped trailing one.
+ *
+ * Columns before the chosen window inherit from `previous` — the row immediately
+ * above, reconstructed or not — because that is what a span actually continues
+ * from. (Shapes come from the last full-width row instead, since only those rows
+ * have certain alignment.) In the example above, "Patent Leather Kid" is a second
+ * role for Richard Barthelmess, not for Emil Jannings.
  *
  * A row with more cells than the header is truncated rather than dropped — a
  * trailing stray pipe should not cost a real row.
  */
-function alignRow(cells: string[], shapes: CellShape[], anchor: string[] | undefined): string[] {
+function alignRow(cells: string[], shapes: CellShape[], previous: string[] | undefined): string[] {
   const headerCount = shapes.length;
   if (cells.length === headerCount) return cells;
   if (cells.length > headerCount) return cells.slice(0, headerCount);
-  if (!anchor) {
+  if (!previous) {
     // Nothing to inherit from yet — left-align and pad.
     return cells.concat(Array(headerCount - cells.length).fill(""));
   }
@@ -160,7 +165,7 @@ function alignRow(cells: string[], shapes: CellShape[], anchor: string[] | undef
   }
 
   const out: string[] = [];
-  for (let i = 0; i < bestStart; i++) out.push(anchor[i] ?? "");
+  for (let i = 0; i < bestStart; i++) out.push(previous[i] ?? "");
   out.push(...cells);
   while (out.length < headerCount) out.push("");
   return out;
@@ -179,9 +184,9 @@ export function parseMarkdownTables(markdown: string): MarkdownTable[] {
 
     const headers = splitCells(line).map(cleanCell);
     const rows: string[][] = [];
-    // The last full-width row: the only rows whose column alignment is certain,
-    // so they are what ragged rows inherit from and are shape-matched against.
-    let anchor: string[] | undefined;
+    // Shapes come from the last full-width row (certain alignment); inherited
+    // values come from the row immediately above (where a span continues from).
+    let previous: string[] | undefined;
     let shapes: CellShape[] = Array(headers.length).fill("text");
 
     let j = i + 2;
@@ -190,11 +195,10 @@ export function parseMarkdownTables(markdown: string): MarkdownTable[] {
       if (!rowLine || !rowLine.trim().startsWith("|")) break;
       if (SEPARATOR_ROW.test(rowLine)) continue;
       const cells = splitCells(rowLine);
-      if (cells.length === headers.length) {
-        anchor = cells;
-        shapes = cells.map(shapeOf);
-      }
-      rows.push(alignRow(cells, shapes, anchor));
+      if (cells.length === headers.length) shapes = cells.map(shapeOf);
+      const aligned = alignRow(cells, shapes, previous);
+      rows.push(aligned);
+      previous = aligned;
     }
 
     if (rows.length > 0) tables.push({ headers, rows });
