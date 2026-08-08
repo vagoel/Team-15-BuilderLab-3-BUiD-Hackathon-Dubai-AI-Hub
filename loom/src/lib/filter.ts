@@ -38,18 +38,25 @@ function matches(row: DataRecord, f: Filter): boolean {
 }
 
 /**
- * Strip everything but digits and parse — or give up.
+ * Read the first number out of a cell — or give up.
  *
  * The give-up half matters more than the parse. `Number("")` is 0, not NaN, so
  * stripping the letters out of "Drift" and parsing left every text cell equal to
  * every other: `product eq Drift` matched all 120 rows instead of 24. Any cell with
  * no digits in it is simply not a number.
+ *
+ * Taking the FIRST number rather than every digit on the line matters just as much.
+ * Wikipedia writes an Oscars year as "1937 (10th)", and stripping non-digits welded
+ * the two runs into 193710 — so "the last twenty years" (`year gte 2005`) matched all
+ * 976 rows instead of narrowing them. Thousands separators are dropped first, since a
+ * comma between two digits is punctuation inside one number, not a boundary.
  */
 function toNumber(value: string | number): number | null {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  const cleaned = value.replace(/[^0-9.\-]/g, "");
-  if (!cleaned || !/\d/.test(cleaned)) return null;
-  const n = Number(cleaned);
+  const withoutSeparators = value.replace(/(\d),(?=\d)/g, "$1");
+  const match = withoutSeparators.match(/-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const n = Number(match[0]);
   return Number.isFinite(n) ? n : null;
 }
 

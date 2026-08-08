@@ -266,9 +266,10 @@ spend two minutes on the mic button by hand:
 
 ## Dev harness
 
-Everything on the canvas comes from live research — there is no synthetic data path, so
-nothing on screen can be mistaken for something it isn't. To work on the canvas without
-starting a voice session, `?dev` opens a harness that drives every tool by button.
+The agent has no way to put anything on the canvas but real researched data — nothing on
+screen can be mistaken for something it isn't. To work on the rendering layer without
+starting a voice session, `?dev` opens a harness that drives every tool by button and
+seeds a fixture locally.
 
 ## Tests
 
