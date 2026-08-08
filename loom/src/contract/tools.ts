@@ -171,14 +171,6 @@ export const FocusComponentParams = z.object({
 
 export const GetUiStateParams = z.object({});
 
-/**
- * Mock mode. Loads a generated table from the local mock API instead of researching
- * the live web — same parse-and-render pipeline, fake data source.
- *
- * It earns its place: extraction credits are finite, and being able to put a
- * hundred-row table on screen in under a second is how you demonstrate or debug the
- * canvas without spending one.
- */
 export const AddComponentParams = z.object({
   datasetId: z.string().describe("Which dataset the new component should read from."),
   type: ComponentKind.describe("stat_cards, chart, comparison_table, findings, source_list or image_gallery."),
@@ -275,41 +267,6 @@ export const SortTableParams = z.object({
   componentId: z.string().describe("Usually auto_table."),
   field: z.string().describe("A field key from the dataset."),
   dir: z.enum(["asc", "desc"]).describe("asc for smallest first, desc for largest first."),
-});
-
-export const MockDataParams = z.object({
-  table: z
-    .enum([
-      "llm_pricing",
-      "dubai_rent",
-      "gpu_cloud",
-      "sales",
-      "employees",
-      "models",
-      "weather",
-      "market_share",
-      "numbers",
-    ])
-    .describe(
-      "The first three are REAL pre-researched datasets with genuine sources — prefer " +
-        "these whenever the topic fits. llm_pricing: language model API costs per million " +
-        "tokens across OpenAI, Anthropic, Google, DeepSeek, Mistral. dubai_rent: Dubai " +
-        "apartment rents and yields by area. gpu_cloud: H100 and A100 hourly rates by " +
-        "provider. The rest are generated filler for testing the interface: sales, " +
-        "employees, models, weather, market_share (small, good for a pie), numbers.",
-    ),
-  rows: z
-    .number()
-    .optional()
-    .describe("How many rows to generate, up to 1000. Omit for the table's natural size."),
-  mode: z
-    .enum(["replace", "add"])
-    .optional()
-    .describe(
-      "replace (the default) clears the canvas and shows this table on its own. " +
-        "Use add when the user wants this alongside what is already there — " +
-        "'add a table of X too', 'combine these into one report'.",
-    ),
 });
 
 export const TOOLS = {
@@ -521,20 +478,6 @@ export const TOOLS = {
     kind: "client",
     description: "Scroll a component into view and highlight it while you talk about it.",
     params: FocusComponentParams,
-  }),
-
-  mock_data: def({
-    name: "mock_data",
-    kind: "client",
-    description:
-      "Load a generated sample table instead of researching the live web. Use this ONLY " +
-      "when the user explicitly asks for mock, sample, test or demo data, or asks to see " +
-      "what the interface can do. It renders a dashboard exactly as research does. Never " +
-      "use it to answer a real question — say you could not find something rather than " +
-      "showing invented data as if it were real.",
-    params: MockDataParams,
-    preToolSpeech: "Loading a sample table.",
-    waitForResponse: true,
   }),
 
   set_layout: def({

@@ -1,11 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Canvas } from "./canvas/Canvas.js";
 import { ChatPanel } from "./chat/ChatPanel.js";
 import { DevRail } from "./dev/DevRail.js";
 import { TemplateRail } from "./templates/TemplateRail.js";
 import { ReportPreview } from "./report/ReportPreview.js";
-import { useLoom } from "./store.js";
-import { createToolHandlers } from "./voice/toolHandlers.js";
 
 /**
  * App-in-app: a collapsed template rail, a narrow conversation rail, and the
@@ -18,7 +16,6 @@ import { createToolHandlers } from "./voice/toolHandlers.js";
  */
 export function App() {
   const [dev, setDev] = useState(() => new URLSearchParams(location.search).has("dev"));
-  useDemoDashboard();
 
   return (
     <>
@@ -35,21 +32,6 @@ export function App() {
       <ReportPreview />
     </>
   );
-}
-
-/**
- * `?demo` boots straight into a populated dashboard, so the voice flow can be
- * exercised without spending a research call first. `?demo=models` picks a table;
- * anything the mock API serves works. The plain product still opens empty.
- */
-function useDemoDashboard() {
-  useEffect(() => {
-    const table = new URLSearchParams(location.search).get("demo");
-    if (table === null) return;
-    if (useLoom.getState().spec) return;
-
-    void createToolHandlers().mock_data?.({ table: table || "sales", rows: 120 });
-  }, []);
 }
 
 const toggle: React.CSSProperties = {

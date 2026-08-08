@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "loom",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--dir", "loom", "dev", "--port", "5174", "--strictPort"],
+      "runtimeExecutable": "loom/node_modules/.bin/vite",
+      "runtimeArgs": ["loom", "--config", "loom/vite.config.ts", "--port", "5174", "--strictPort"],
       "port": 5174
     }
   ]

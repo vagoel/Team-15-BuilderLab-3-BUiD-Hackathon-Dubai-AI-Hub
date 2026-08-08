@@ -455,34 +455,4 @@ describe("createToolHandlers", () => {
     const comp = useLoom.getState().spec?.components.find((c) => c.id === "auto_chart");
     expect(comp?.size).toBeUndefined();
   });
-
-  it("mock_data times out instead of hanging the voice turn forever on a stalled dev server", async () => {
-    vi.useFakeTimers();
-    const originalFetch = globalThis.fetch;
-    // Simulates a dev server that accepted the connection but never responds:
-    // `fetch` never settles on its own, only when its AbortSignal fires.
-    globalThis.fetch = vi.fn((_url: string, init?: RequestInit) => {
-      return new Promise((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () => {
-          const err = new Error("The operation was aborted");
-          err.name = "AbortError";
-          reject(err);
-        });
-      });
-    }) as unknown as typeof fetch;
-
-    try {
-      const handlers = createToolHandlers();
-      const pending = handlers.mock_data!({ table: "sales" });
-      await vi.advanceTimersByTimeAsync(8000);
-      const result = await pending;
-
-      expect(typeof result).toBe("string");
-      expect(result as string).toMatch(/^mock_data failed:/);
-      expect(result as string).toMatch(/timed out/i);
-    } finally {
-      globalThis.fetch = originalFetch;
-      vi.useRealTimers();
-    }
-  });
 });
