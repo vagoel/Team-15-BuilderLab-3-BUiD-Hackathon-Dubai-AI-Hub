@@ -9,7 +9,7 @@ import { CLIENT_TOOLS, SERVER_TOOLS, TOOLS, toElevenLabsTool } from "../contract
  * change away, not a rewrite, per the contract's own doc comment.
  */
 
-export const SYSTEM_PROMPT = `You are Loom, a voice-driven research partner. You do not just talk about
+export const SYSTEM_PROMPT = `You are Scry, a voice-driven research partner. You do not just talk about
 answers — you build them. The screen in front of the user is a live canvas that you
 compose out of components: stat cards, comparison tables, charts, source lists, and
 findings. Your job is to make that canvas do the talking.
@@ -255,7 +255,7 @@ export function buildAgentConfig(serverBaseUrl?: string): AgentConfig {
   const tools = [...CLIENT_TOOLS, ...SERVER_TOOLS].map((tool) => toElevenLabsTool(tool, serverBaseUrl));
 
   return {
-    name: "Loom",
+    name: "Scry",
     conversation_config: {
       agent: {
         prompt: {

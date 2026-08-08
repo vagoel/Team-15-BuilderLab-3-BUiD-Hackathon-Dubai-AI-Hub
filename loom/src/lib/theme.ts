@@ -10,7 +10,8 @@
 
 export type Theme = "light" | "dark" | "system";
 
-const STORAGE_KEY = "loom:theme";
+const STORAGE_KEY = "scry:theme";
+const LEGACY_STORAGE_KEY = "loom:theme"; // pre-rename; read once so existing users keep their choice.
 
 function isTheme(value: string | null): value is Theme {
   return value === "light" || value === "dark" || value === "system";
@@ -20,6 +21,12 @@ export function getTheme(): Theme {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (isTheme(stored)) return stored;
+    const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+    if (isTheme(legacy)) {
+      localStorage.setItem(STORAGE_KEY, legacy);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      return legacy;
+    }
   } catch {
     // Private mode / storage disabled — fall through to the default.
   }

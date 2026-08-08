@@ -207,7 +207,7 @@ function Pill({
         borderRadius: 20,
         border: `1px solid ${active ? "var(--accent)" : "var(--line)"}`,
         background: active ? "var(--accent-soft)" : "var(--panel-2)",
-        color: disabled ? "var(--dim)" : active ? "#8fb0ff" : "var(--mute)",
+        color: disabled ? "var(--dim)" : active ? "var(--accent)" : "var(--mute)",
         fontSize: 12.5,
         opacity: disabled ? 0.45 : 1,
         cursor: disabled ? "not-allowed" : "pointer",

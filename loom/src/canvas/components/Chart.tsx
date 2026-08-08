@@ -101,6 +101,20 @@ export function Chart({ spec, dataset, report = false }: { spec: ChartSpec; data
   const bandWidth = plotW / categories.length;
   const rotateLabels = categories.length > 8;
 
+  // Text alternative so the charted data isn't invisible to screen readers.
+  const xLabel = fieldLabel(spec.x);
+  const primary = series[0];
+  const topIdx = primary
+    ? primary.values.reduce((best, v, i, arr) => (v > (arr[best] ?? -Infinity) ? i : best), 0)
+    : 0;
+  const summary =
+    `${spec.kind === "bar" ? "Bar" : "Line"} chart of ${series.map((s) => s.label).join(", ")} by ${xLabel}, ` +
+    `${categories.length} categor${categories.length === 1 ? "y" : "ies"}.` +
+    (primary && categories.length
+      ? ` Highest ${primary.label}: ${categories[topIdx]} at ${formatCompact(primary.values[topIdx] ?? 0)}.`
+      : "") +
+    (caption ? ` ${caption}` : "");
+
   return (
     <div>
       {subtitle && (
@@ -127,6 +141,8 @@ export function Chart({ spec, dataset, report = false }: { spec: ChartSpec; data
       )}
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        role="img"
+        aria-label={summary}
         style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}
       >
         {report && <ReportPatterns prefix={patternPrefix} />}
@@ -144,7 +160,7 @@ export function Chart({ spec, dataset, report = false }: { spec: ChartSpec; data
           return (
             <g key={f}>
               <line x1={MARGIN.left} x2={WIDTH - MARGIN.right} y1={y} y2={y} stroke="var(--line-soft)" strokeWidth={1} />
-              <text x={MARGIN.left - 8} y={y + 3} textAnchor="end" fontSize={9} fill="var(--dim)">
+              <text x={MARGIN.left - 8} y={y + 4} textAnchor="end" fontSize={12} fill="var(--mute)">
                 {formatCompact(f * domainMax)}
               </text>
             </g>
@@ -244,8 +260,8 @@ export function Chart({ spec, dataset, report = false }: { spec: ChartSpec; data
               y={y}
               textAnchor={rotateLabels ? "end" : "middle"}
               transform={rotateLabels ? `rotate(-40 ${x} ${y})` : undefined}
-              fontSize={9}
-              fill="var(--dim)"
+              fontSize={12}
+              fill="var(--mute)"
             >
               {truncateLabel(cat, rotateLabels ? 14 : 10)}
             </text>
@@ -373,6 +389,14 @@ function PieChart({
   // lines — so "auto" always shows it. Only an explicit "hide" takes it away.
   const showLegend = spec.legend !== "hide";
 
+  const summary =
+    `Pie chart of ${yKey} by ${xKey}, ${slices.length} slice${slices.length === 1 ? "" : "s"}, total ${formatCompact(total)}. ` +
+    slices
+      .slice(0, 3)
+      .map((s) => `${s.label || "(blank)"} ${formatPercent(s.fraction)}`)
+      .join(", ") +
+    ".";
+
   return (
     <div>
       {spec.subtitle && (
@@ -402,6 +426,8 @@ function PieChart({
       )}
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        role="img"
+        aria-label={summary}
         style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}
       >
         {report && <ReportPatterns prefix={patternPrefix} />}
@@ -427,10 +453,10 @@ function PieChart({
             );
           })}
         </g>
-        <text x={cx} y={cy - 4} textAnchor="middle" fontSize={16} fontWeight={600} fill="var(--ink)">
+        <text x={cx} y={cy - 4} textAnchor="middle" fontSize={18} fontWeight={600} fill="var(--ink)">
           {formatCompact(total)}
         </text>
-        <text x={cx} y={cy + 13} textAnchor="middle" fontSize={9} fill="var(--dim)">
+        <text x={cx} y={cy + 14} textAnchor="middle" fontSize={11} fill="var(--mute)">
           total
         </text>
         {slices.map((s, i) => {
@@ -454,8 +480,8 @@ function PieChart({
                 y={labelPoint.y}
                 textAnchor={anchorRight ? "start" : "end"}
                 dominantBaseline="middle"
-                fontSize={9}
-                fill="var(--dim)"
+                fontSize={12}
+                fill="var(--mute)"
               >
                 {truncateLabel(s.label || "(blank)", 12)} {formatPercent(s.fraction)}
               </text>

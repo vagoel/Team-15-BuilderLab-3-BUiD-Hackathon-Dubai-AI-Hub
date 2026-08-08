@@ -57,6 +57,9 @@ interface LoomState {
   error: string | null;
   tableViewFilters: Record<string, TableViewFilterState>;
   reportPreview: ReportPreviewState;
+  /** A prompt the canvas wants dropped into the chat input (e.g. an example chip click).
+   * The rail consumes it into its draft and focuses the input, then clears it. */
+  queuedPrompt: string | null;
 
   setSpec: (spec: UiSpec) => void;
   undo: () => UiSpec | null;
@@ -80,6 +83,7 @@ interface LoomState {
   setStatus: (s: Status) => void;
   setProgress: (p: Progress | null) => void;
   setError: (e: string | null) => void;
+  setQueuedPrompt: (p: string | null) => void;
   reset: () => void;
 }
 
@@ -97,6 +101,7 @@ export const useLoom = create<LoomState>((set, get) => ({
   error: null,
   tableViewFilters: {},
   reportPreview: { open: false, openedAt: null, printRequestId: 0 },
+  queuedPrompt: null,
 
   setSpec: (spec) =>
     set((s) => ({
@@ -287,6 +292,7 @@ export const useLoom = create<LoomState>((set, get) => ({
   setStatus: (status) => set({ status }),
   setProgress: (progress) => set({ progress }),
   setError: (error) => set({ error, status: error ? "error" : "idle" }),
+  setQueuedPrompt: (queuedPrompt) => set({ queuedPrompt }),
   reset: () =>
     set({
       spec: null,
@@ -298,6 +304,7 @@ export const useLoom = create<LoomState>((set, get) => ({
       status: "idle",
       tableViewFilters: {},
       reportPreview: { open: false, openedAt: null, printRequestId: 0 },
+      queuedPrompt: null,
     }),
 }));
 

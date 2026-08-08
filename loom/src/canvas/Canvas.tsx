@@ -17,6 +17,7 @@ export function Canvas() {
   const focusedId = useLoom((s) => s.focusedId);
   const status = useLoom((s) => s.status);
   const progress = useLoom((s) => s.progress);
+  const canUndo = useLoom((s) => s.history.length > 0);
 
   if (!spec) {
     return (
@@ -33,16 +34,22 @@ export function Canvas() {
           </div>
         ) : (
           <div className="empty">
-            <h2>Ask me to research something</h2>
+            <h2>Say it, watch it take shape.</h2>
             <p>
-              Speak or type a question — Loom researches the web and builds a live dashboard of the
-              answer, right here.
+              Ask a research question out loud or type it. Scry reads live web pages, pulls out the
+              numbers, and builds a dashboard here while it talks you through what it finds.
             </p>
+            <p className="empty-hint">Press Start in the left rail to talk, or try one of these:</p>
             <div>
               {EXAMPLE_PROMPTS.map((prompt) => (
-                <span className="chip" key={prompt}>
+                <button
+                  type="button"
+                  className="chip chip-action"
+                  key={prompt}
+                  onClick={() => useLoom.getState().setQueuedPrompt(prompt)}
+                >
                   {prompt}
-                </span>
+                </button>
               ))}
             </div>
           </div>
@@ -57,13 +64,46 @@ export function Canvas() {
   return (
     <main className="canvas">
       <div className="canvas-head">
-        <div className="canvas-title">{spec.title ?? "Results"}</div>
-        <div className="canvas-head-actions">
+        <div>
+          <div className="canvas-title">{spec.title ?? "Results"}</div>
           <div className="canvas-sub">
             {sourceCount} source{sourceCount === 1 ? "" : "s"} · {rowCount} row{rowCount === 1 ? "" : "s"}
           </div>
+        </div>
+        {/* Voice-only actions surfaced as controls so keyboard/mouse users aren't second-class. */}
+        <div className="canvas-actions">
           <button
-            className="canvas-report-button"
+            type="button"
+            className="canvas-action-btn"
+            disabled={!canUndo}
+            onClick={() => {
+              const prev = useLoom.getState().undo();
+              useLoom.getState().addMessage({
+                role: "system",
+                kind: "status",
+                text: prev ? "Reverted the last change." : "Nothing to undo.",
+              });
+            }}
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            className="canvas-action-btn"
+            onClick={() => {
+              const cleared = useLoom.getState().clearCanvas();
+              useLoom.getState().addMessage({
+                role: "system",
+                kind: "status",
+                text: cleared ? "Canvas cleared." : "Canvas is already empty.",
+              });
+            }}
+          >
+            Clear
+          </button>
+          <button
+            type="button"
+            className="canvas-action-btn"
             onClick={() => useLoom.getState().openReportPreview()}
             disabled={status === "researching"}
           >
