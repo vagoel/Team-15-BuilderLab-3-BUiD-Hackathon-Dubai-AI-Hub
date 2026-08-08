@@ -117,6 +117,7 @@ function ReportSectionView({ section }: { section: ReportSection }) {
       {section.type === "comparison_table" && <ReportTable section={section} />}
       {section.type === "findings" && <ReportFindings section={section} />}
       {section.type === "source_list" && <ReportSources sources={section.sources} unavailable={section.unavailable} />}
+      {section.type === "image_gallery" && <ReportImages section={section} />}
     </section>
   );
 }
@@ -163,12 +164,35 @@ function ReportSources({ sources, unavailable }: { sources: ReportSource[]; unav
   ))}</ol>;
 }
 
+function ReportImages({ section }: { section: Extract<ReportSection, { type: "image_gallery" }> }) {
+  if (section.unavailable) return <Unavailable />;
+  if (!section.images.length) return <p className="report-empty">No images were collected for this report.</p>;
+  return <div className="report-images">{section.images.map((image, index) => (
+    <figure key={`${image.src}-${index}`}>
+      <img src={image.src} alt={image.alt ?? ""} />
+      {(image.alt || image.sourceNumber !== undefined) && (
+        <figcaption>
+          {image.alt}
+          {image.sourceNumber !== undefined && <sup>{`[${image.sourceNumber}]`}</sup>}
+        </figcaption>
+      )}
+    </figure>
+  ))}</div>;
+}
+
 function Unavailable() {
   return <p className="report-empty">This section’s data is no longer available.</p>;
 }
 
 function defaultTitle(type: ReportSection["type"]): string {
-  return ({ stat_cards: "Summary", comparison_table: "Comparison", chart: "Chart", findings: "Key findings", source_list: "Sources" })[type];
+  return ({
+    stat_cards: "Summary",
+    comparison_table: "Comparison",
+    chart: "Chart",
+    findings: "Key findings",
+    source_list: "Sources",
+    image_gallery: "Images",
+  })[type];
 }
 
 function isNumeric(type: string): boolean {

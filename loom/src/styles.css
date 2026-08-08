@@ -778,6 +778,35 @@ button {
   overflow-wrap: anywhere;
 }
 
+/* Three to a row prints two rows per page at A4 without a figure ever splitting
+   across the page break — `break-inside: avoid` is what keeps a caption with its
+   picture rather than orphaning it at the top of the next sheet. */
+.report-images {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9pt;
+}
+
+.report-images figure {
+  break-inside: avoid;
+  margin: 0;
+}
+
+.report-images img {
+  display: block;
+  width: 100%;
+  height: 88pt;
+  object-fit: cover;
+  border: 0.75px solid var(--report-rule);
+}
+
+.report-images figcaption {
+  margin-top: 3pt;
+  color: var(--report-muted);
+  font-size: 8pt;
+  overflow-wrap: anywhere;
+}
+
 .report-empty {
   color: var(--report-muted);
   font-style: italic;

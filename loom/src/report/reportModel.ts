@@ -5,6 +5,7 @@ import { applyFilters, selectRows } from "../lib/filter.js";
 type TableSpec = Extract<UiComponentSpec, { type: "comparison_table" }>;
 type ChartSpec = Extract<UiComponentSpec, { type: "chart" }>;
 type StatSpec = Extract<UiComponentSpec, { type: "stat_cards" }>;
+type ImageGallerySpec = Extract<UiComponentSpec, { type: "image_gallery" }>;
 
 export interface ReportSource extends Source {
   number: number;
@@ -21,7 +22,15 @@ export type ReportSection =
   | { id: string; type: "comparison_table"; title?: string; spec: TableSpec; dataset?: Dataset; fields: FieldSpec[]; rows: ReportTableRow[]; summary: string }
   | { id: string; type: "chart"; title?: string; spec: ChartSpec; dataset?: Dataset }
   | { id: string; type: "findings"; title?: string; items: { text: string; sourceNumbers: number[] }[]; unavailable: boolean }
-  | { id: string; type: "source_list"; title?: string; sources: ReportSource[]; unavailable: boolean };
+  | { id: string; type: "source_list"; title?: string; sources: ReportSource[]; unavailable: boolean }
+  | {
+      id: string;
+      type: "image_gallery";
+      title?: string;
+      spec: ImageGallerySpec;
+      images: { src: string; alt?: string; sourceNumber?: number }[];
+      unavailable: boolean;
+    };
 
 export interface ReportModel {
   title: string;
@@ -33,6 +42,9 @@ export interface ReportModel {
   datasetCount: number;
   filename: string;
 }
+
+/** Matches the on-screen gallery's own default, so print and screen agree. */
+const DEFAULT_GALLERY_IMAGES = 12;
 
 export function buildReportModel(
   spec: UiSpec,
@@ -100,6 +112,23 @@ export function buildReportModel(
           unavailable: !dataset,
           sources: dataset ? dataset.sources.map((source) => sources.find((item) => item.id === source.id)).filter((source): source is ReportSource => Boolean(source)) : [],
         };
+      case "image_gallery": {
+        // A printed gallery carries its attribution as the same bracketed number the
+        // rest of the report uses, so a picture on paper is still traceable to a page.
+        const images = (dataset?.images ?? []).slice(0, component.max ?? DEFAULT_GALLERY_IMAGES).map((image) => ({
+          src: image.src,
+          ...(image.alt ? { alt: image.alt } : {}),
+          ...(sourceNumbers.has(image.sourceId) ? { sourceNumber: sourceNumbers.get(image.sourceId) } : {}),
+        }));
+        return {
+          id: component.id,
+          type: component.type,
+          title: component.title,
+          spec: component,
+          images,
+          unavailable: !dataset,
+        };
+      }
     }
   });
 
