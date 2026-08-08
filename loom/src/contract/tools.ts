@@ -225,6 +225,10 @@ export const ExportDataParams = z.object({
     .describe("A table id, to export only the rows its filters currently leave visible."),
 });
 
+export const ExportReportParams = z.object({
+  action: z.enum(["preview", "print"]).default("preview"),
+});
+
 export const HighlightRowsParams = z.object({
   componentId: z.string().describe("Usually auto_table."),
   filters: z
@@ -435,6 +439,16 @@ export const TOOLS = {
       "spreadsheet', 'download the table'. Pass a componentId to export only the rows " +
       "currently visible after filtering.",
     params: ExportDataParams,
+    waitForResponse: true,
+  }),
+
+  export_report: def({
+    name: "export_report",
+    kind: "client",
+    description:
+      "Open a print-ready preview of the current visual report, or print it after the " +
+      "preview is open. Use this for PDF, final report, report preview, and print requests.",
+    params: ExportReportParams,
     waitForResponse: true,
   }),
 

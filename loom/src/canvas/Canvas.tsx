@@ -58,8 +58,17 @@ export function Canvas() {
     <main className="canvas">
       <div className="canvas-head">
         <div className="canvas-title">{spec.title ?? "Results"}</div>
-        <div className="canvas-sub">
-          {sourceCount} source{sourceCount === 1 ? "" : "s"} · {rowCount} row{rowCount === 1 ? "" : "s"}
+        <div className="canvas-head-actions">
+          <div className="canvas-sub">
+            {sourceCount} source{sourceCount === 1 ? "" : "s"} · {rowCount} row{rowCount === 1 ? "" : "s"}
+          </div>
+          <button
+            className="canvas-report-button"
+            onClick={() => useLoom.getState().openReportPreview()}
+            disabled={status === "researching"}
+          >
+            Preview PDF
+          </button>
         </div>
       </div>
       {spec.layout === "grid" ? (

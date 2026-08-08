@@ -33,7 +33,7 @@ ElevenLabs owns microphone transport, transcription, speech, turn-taking, and to
 
 The browser calls same-origin `/api/context/*` routes. Vite proxies them to context.dev and injects `CONTEXT_DEV_API_KEY` on the Node side. Source requests run concurrently with `Promise.allSettled`; hooks update source and progress state as each request settles. This is incremental browser-state update, not response streaming or SSE.
 
-The full dataset remains in Zustand. ElevenLabs receives only a dataset ID, counts, headline, fields, and short findings. `autoLayout` reads the stored rows and selects from five implemented component types: stat cards, chart, comparison table, findings, and source list. Follow-up tools mutate the same state the React components read, while `get_ui_state` lets the agent inspect the visible structure.
+The full dataset remains in Zustand. ElevenLabs receives only a dataset ID, counts, headline, fields, and short findings. `autoLayout` reads the stored rows and selects from five implemented component types: stat cards, chart, comparison table, findings, and source list. Follow-up tools mutate the same state the React components read, while `get_ui_state` lets the agent inspect the visible structure. `export_report` builds a print-specific view from that browser state: semantic HTML tables replace virtualized screen tables, SVG charts remain vectors, and native browser printing produces a PDF without a backend or persisted report copy. `export_data` remains the separate CSV path for raw rows.
 
 There is no production backend or persistence. A refresh clears the session, and the development proxy must be replaced before public deployment.
 

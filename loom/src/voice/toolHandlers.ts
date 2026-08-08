@@ -15,6 +15,7 @@ import {
   RemoveComponentParams,
   ClearCanvasParams,
   ExportDataParams,
+  ExportReportParams,
   HighlightRowsParams,
   ScrollComponentParams,
   ScrollPageParams,
@@ -27,7 +28,8 @@ import {
 } from "../contract/tools.js";
 import { buildComponent, buildLayout, defaultLayout } from "../canvas/autoLayout.js";
 import { csvToTable } from "../research/csv.js";
-import { applyFilters } from "../lib/filter.js";
+import { applyFilters, selectRows } from "../lib/filter.js";
+import { buildReportModel } from "../report/reportModel.js";
 import { useLoom } from "../store.js";
 import {
   datasetHasSource,
@@ -665,7 +667,14 @@ async function handleExportData(raw: unknown): Promise<unknown> {
     // shows 12 filtered ones is not what "export this" means.
     const component = componentId ? state.spec?.components.find((c) => c.id === componentId) : undefined;
     const filters = component && "filters" in component ? component.filters : [];
-    const rows = applyFilters(dataset.records, filters);
+    const tableViewFilter = component?.type === "comparison_table" ? state.tableViewFilters[component.id] : undefined;
+    const manualFilters = tableViewFilter?.datasetId === datasetId ? tableViewFilter.filters : [];
+    const rows = selectRows(
+      dataset.records,
+      [...filters, ...manualFilters],
+      component?.type === "comparison_table" ? component.sort : undefined,
+      dataset.fields,
+    );
     const fields = dataset.fields.filter((f) => f.key !== "_source");
 
     const escape = (v: unknown) => {
@@ -686,10 +695,35 @@ async function handleExportData(raw: unknown): Promise<unknown> {
     setTimeout(() => URL.revokeObjectURL(url), 5_000);
 
     toolMessage(`export_data → ${name} (${rows.length} rows)`);
-    return `Downloaded ${rows.length} rows as ${name}${filters.length ? " — the filtered rows only" : ""}.`;
+    return `Downloaded ${rows.length} rows as ${name}${filters.length || manualFilters.length ? " — the filtered rows only" : ""}.`;
   } catch (err) {
     return errorMessage("export_data", describeErr(err));
   }
+}
+
+async function handleExportReport(raw: unknown): Promise<unknown> {
+  const parsed = parseParams(ExportReportParams, raw);
+  if (!parsed.ok) return errorMessage("export_report", parsed.error);
+  const state = useLoom.getState();
+  if (!state.spec) return "There is no report to export yet. Finish a research request first.";
+  if (state.status === "researching") return "The report is still being researched. Please wait for the final dashboard before exporting it.";
+
+  if (parsed.data.action === "print") {
+    if (!state.reportPreview.open) {
+      state.openReportPreview();
+      toolMessage("export_report → preview");
+      return "I opened the PDF preview first. Review it, then ask me to print it or choose Print / Save PDF.";
+    }
+    state.requestReportPrint();
+    toolMessage("export_report → print");
+    return "Opening the browser print dialog. Choose Save as PDF to download the report.";
+  }
+
+  state.openReportPreview();
+  const latest = useLoom.getState();
+  const model = buildReportModel(latest.spec!, latest.datasets, latest.tableViewFilters, latest.reportPreview.openedAt ?? Date.now());
+  toolMessage(`export_report → preview (${model.sections.length} sections)`);
+  return `Opened the PDF preview with ${model.sections.length} sections, ${model.rowCount} table rows, and ${model.sourceCount} sources.`;
 }
 
 async function handleSortTable(raw: unknown): Promise<unknown> {
@@ -1022,6 +1056,7 @@ export function createToolHandlers(): Record<string, (params: any) => Promise<an
     undo: handleUndo,
     clear_canvas: handleClearCanvas,
     export_data: handleExportData,
+    export_report: handleExportReport,
     highlight_rows: handleHighlightRows,
     get_ui_state: handleGetUiState,
   } satisfies Record<ToolName, (params: any) => Promise<any>>;

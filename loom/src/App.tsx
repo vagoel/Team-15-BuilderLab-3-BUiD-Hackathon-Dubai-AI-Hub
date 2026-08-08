@@ -3,6 +3,7 @@ import { Canvas } from "./canvas/Canvas.js";
 import { ChatPanel } from "./chat/ChatPanel.js";
 import { DevRail } from "./dev/DevRail.js";
 import { TemplateRail } from "./templates/TemplateRail.js";
+import { ReportPreview } from "./report/ReportPreview.js";
 import { useLoom } from "./store.js";
 import { createToolHandlers } from "./voice/toolHandlers.js";
 
@@ -20,16 +21,19 @@ export function App() {
   useDemoDashboard();
 
   return (
-    <div className="app">
-      <TemplateRail />
-      {dev ? <DevRail onClose={() => setDev(false)} /> : <ChatPanel />}
-      <Canvas />
-      {!dev && (
-        <button onClick={() => setDev(true)} style={toggle} title="Open the dev harness">
-          dev
-        </button>
-      )}
-    </div>
+    <>
+      <div className="app">
+        <TemplateRail />
+        {dev ? <DevRail onClose={() => setDev(false)} /> : <ChatPanel />}
+        <Canvas />
+        {!dev && (
+          <button onClick={() => setDev(true)} style={toggle} title="Open the dev harness">
+            dev
+          </button>
+        )}
+      </div>
+      <ReportPreview />
+    </>
   );
 }
 

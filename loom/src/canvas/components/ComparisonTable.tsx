@@ -15,7 +15,7 @@ import type { SortingState, ColumnFiltersState, ColumnDef, SortFn, FilterFn } fr
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { UiComponentSpec, Filter } from "../../contract/ui.js";
 import type { DataRecord, Dataset } from "../../contract/dataset.js";
-import { applyFilters, formatValue } from "../../lib/filter.js";
+import { applyFilters, columnFiltersToFilters, formatValue } from "../../lib/filter.js";
 import { useLoom } from "../../store.js";
 
 /**
@@ -142,6 +142,24 @@ function ComparisonTableInner({ spec, dataset }: { spec: ComparisonTableSpec; da
 
   // Layer 2: TanStack's own column filters, typed into the header row. Purely local UI state.
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const tableIdentity = `${dataset.id}:${columnKeys.join("\u001f")}`;
+  const previousIdentity = useRef(tableIdentity);
+  useEffect(() => {
+    if (previousIdentity.current === tableIdentity) return;
+    previousIdentity.current = tableIdentity;
+    setColumnFilters([]);
+    useLoom.getState().setTableViewFilters(spec.id, dataset.id, []);
+  }, [dataset.id, spec.id, tableIdentity]);
+  const handleColumnFiltersChange = useCallback(
+    (updater: ColumnFiltersState | ((old: ColumnFiltersState) => ColumnFiltersState)) => {
+      setColumnFilters((old) => {
+        const next = functionalUpdate(updater, old);
+        useLoom.getState().setTableViewFilters(spec.id, dataset.id, columnFiltersToFilters(next, dataset.fields));
+        return next;
+      });
+    },
+    [dataset.fields, dataset.id, spec.id],
+  );
 
   // Sorting is NOT local state — spec.sort is the source of truth so a header click and the
   // agent's sort_table tool land in the same place. Memoized so the sorted row model does not
@@ -191,7 +209,7 @@ function ComparisonTableInner({ spec, dataset }: { spec: ComparisonTableSpec; da
     columns: columns as unknown as ColumnDef<typeof features, DataRecord, unknown>[],
     state: { sorting, columnFilters },
     onSortingChange: handleSortingChange,
-    onColumnFiltersChange: setColumnFilters,
+    onColumnFiltersChange: handleColumnFiltersChange,
     enableMultiSort: false,
     // Without this, numeric columns auto-default to a descending first click (TanStack's
     // built-in heuristic) while text columns default to ascending — an inconsistent cycle.
@@ -226,7 +244,7 @@ function ComparisonTableInner({ spec, dataset }: { spec: ComparisonTableSpec; da
   // otherwise the inputs would keep showing stale text after the committed filters reset.
   const [filterGeneration, setFilterGeneration] = useState(0);
   const clearLocalFilters = () => {
-    setColumnFilters([]);
+    handleColumnFiltersChange([]);
     setFilterGeneration((g) => g + 1);
   };
 

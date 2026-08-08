@@ -1,4 +1,7 @@
-import type { DataRecord, Filter } from "../contract/index.js";
+import type { DataRecord, FieldSpec, Filter } from "../contract/index.js";
+
+type SortSpec = { field: string; dir: "asc" | "desc" };
+type ColumnFilterValue = { id: string; value: unknown };
 
 /** Shared by the table, the chart and `get_ui_state` so all three agree on row counts. */
 export function applyFilters(records: DataRecord[], filters: Filter[] = []): DataRecord[] {
@@ -53,6 +56,61 @@ function toNumber(value: string | number): number | null {
 /** Text equality is case- and whitespace-insensitive; nobody dictates exact casing. */
 function sameText(raw: string | number, value: string | number): boolean {
   return String(raw).trim().toLowerCase() === String(value).trim().toLowerCase();
+}
+
+export function columnFiltersToFilters(columnFilters: ColumnFilterValue[], fields: FieldSpec[]): Filter[] {
+  const numericFields = new Set(fields.filter((field) => field.type === "number" || field.type === "currency").map((field) => field.key));
+  const filters: Filter[] = [];
+  for (const filter of columnFilters) {
+    if (numericFields.has(filter.id)) {
+      const range = filter.value as { min?: unknown; max?: unknown } | undefined;
+      const min = parseFilterNumber(range?.min);
+      const max = parseFilterNumber(range?.max);
+      if (min !== null) filters.push({ field: filter.id, op: "gte", value: min });
+      if (max !== null) filters.push({ field: filter.id, op: "lte", value: max });
+      continue;
+    }
+    const value = String(filter.value ?? "").trim();
+    if (value) filters.push({ field: filter.id, op: "contains", value });
+  }
+  return filters;
+}
+
+export function selectRows(
+  records: DataRecord[],
+  filters: Filter[] = [],
+  sort?: SortSpec,
+  fields: FieldSpec[] = [],
+): DataRecord[] {
+  const rows = applyFilters(records, filters);
+  if (!sort) return rows;
+  const field = fields.find((item) => item.key === sort.field);
+  const numeric = field?.type === "number" || field?.type === "currency";
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) => {
+      const av = a.row[sort.field];
+      const bv = b.row[sort.field];
+      const aMissing = av === null || av === undefined;
+      const bMissing = bv === null || bv === undefined;
+      if (aMissing || bMissing) return aMissing === bMissing ? a.index - b.index : aMissing ? 1 : -1;
+      let compared: number;
+      if (numeric) {
+        const an = toNumber(av);
+        const bn = toNumber(bv);
+        compared = an !== null && bn !== null ? an - bn : String(av).localeCompare(String(bv));
+      } else {
+        compared = String(av).localeCompare(String(bv));
+      }
+      return (sort.dir === "desc" ? -compared : compared) || a.index - b.index;
+    })
+    .map(({ row }) => row);
+}
+
+function parseFilterNumber(value: unknown): number | null {
+  if (value === "" || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 export function formatValue(value: string | number | null, type?: string, unit?: string): string {

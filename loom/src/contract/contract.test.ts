@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RenderUiParams, TOOLS, toElevenLabsTool } from "./tools.js";
+import { ExportReportParams, RenderUiParams, TOOLS, toElevenLabsTool } from "./tools.js";
 import { Filter, UiSpec } from "./ui.js";
 
 describe("tool contract", () => {
@@ -27,6 +27,7 @@ describe("tool contract", () => {
     expect(TOOLS.get_ui_state.waitForResponse).toBe(true);
     expect(TOOLS.set_filter.waitForResponse).toBe(true);
     expect(TOOLS.render_ui.waitForResponse).toBe(true);
+    expect(TOOLS.export_report.waitForResponse).toBe(true);
   });
 
   it("blocks on every step of the discovery-then-retrieval protocol", () => {
@@ -57,6 +58,15 @@ describe("tool contract", () => {
   it("declares no structured-extraction tool", () => {
     expect(Object.keys(TOOLS)).not.toContain("research");
     expect(JSON.stringify(TOOLS)).not.toContain("web/extract");
+  });
+});
+
+describe("export_report parameters", () => {
+  it("keeps a flat string action and defaults to preview", () => {
+    expect(ExportReportParams.parse({})).toEqual({ action: "preview" });
+    const schema = (toElevenLabsTool(TOOLS.export_report) as { parameters: any }).parameters;
+    expect(schema.properties.action.type).toBe("string");
+    expect(schema.properties.action.enum).toEqual(["preview", "print"]);
   });
 });
 

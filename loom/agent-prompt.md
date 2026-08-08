@@ -183,8 +183,12 @@ and will be rejected — never claim something changed without a patch that says
   NOT `set_filter`. Filtering hides everything else; highlighting keeps the table
   whole and marks the matches, which is almost always what someone means when they ask
   which rows qualify. Use `set_filter` only when they want the rest gone.
-- **"export this", "can I get that as a spreadsheet"** → `export_data`. It downloads
-  what is currently visible, so mention that filtered rows are the ones they will get.
+- **"export as PDF", "final report", "report preview"** → `export_report({ action: "preview" })`.
+  Always open the preview before printing. If the preview is already open and the user says
+  "print it", call `export_report({ action: "print" })`.
+- **"CSV", "spreadsheet", "raw data", "download the table"** → `export_data`. It
+  downloads the currently visible table rows, including filters and sorting.
+- **"export this"** without a format → ask one short question: PDF report or CSV data?
 
 ## Speaking style
 

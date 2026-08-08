@@ -1,3 +1,4 @@
+import { useId } from "react";
 import type { UiComponentSpec } from "../../contract/ui.js";
 import type { Dataset, DataRecord } from "../../contract/dataset.js";
 import { applyFilters } from "../../lib/filter.js";
@@ -29,7 +30,8 @@ const GRID_FRACTIONS = [0.25, 0.5, 0.75, 1];
 const EMPTY_MESSAGE = "No rows match the current filter.";
 const CHART_GROUP_CAP = 12;
 
-export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | undefined }) {
+export function Chart({ spec, dataset, report = false }: { spec: ChartSpec; dataset: Dataset | undefined; report?: boolean }) {
+  const patternPrefix = useId().replace(/:/g, "");
   if (!dataset) {
     return <p style={{ color: "var(--dim)", fontSize: 13 }}>No data yet.</p>;
   }
@@ -42,7 +44,16 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
   const fieldLabel = (key: string) => dataset.fields.find((f) => f.key === key)?.label ?? key;
 
   if (spec.kind === "pie") {
-    return <PieChart spec={spec} rows={rows} xKey={spec.x} yKey={spec.y[0]} />;
+    return (
+      <PieChart
+        spec={spec}
+        rows={rows}
+        xKey={spec.x}
+        yKey={spec.y[0]}
+        report={report}
+        patternPrefix={patternPrefix}
+      />
+    );
   }
 
   const xValues = rows.map((r) => String(r[spec.x] ?? ""));
@@ -104,7 +115,7 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
                   width: 9,
                   height: 9,
                   borderRadius: 2,
-                  background: colorAt(i),
+                  background: report ? reportGrayAt(i) : colorAt(i),
                   display: "inline-block",
                   flex: "none",
                 }}
@@ -118,14 +129,15 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}
       >
-        <style>{`
+        {report && <ReportPatterns prefix={patternPrefix} />}
+        {!report && <style>{`
           .loom-bar { animation: loom-bar-grow .45s ease both; transform-box: fill-box; transform-origin: bottom; }
           @keyframes loom-bar-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
           .loom-line { stroke-dasharray: 1400; stroke-dashoffset: 1400; animation: loom-line-draw .7s ease forwards; }
           @keyframes loom-line-draw { to { stroke-dashoffset: 0; } }
           .loom-dot { animation: loom-dot-in .3s ease both; }
           @keyframes loom-dot-in { from { opacity: 0; } to { opacity: 1; } }
-        `}</style>
+        `}</style>}
 
         {GRID_FRACTIONS.map((f) => {
           const y = MARGIN.top + plotH - f * plotH;
@@ -167,7 +179,9 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
                         className="loom-bar"
                         style={{ animationDelay: `${ci * 30 + si * 15}ms` }}
                         d={roundedTopRectPath(x + 1, y, Math.max(barW - 2, 1), h, 3)}
-                        fill={colorAt(si)}
+                        fill={report ? `url(#${patternPrefix}-pattern-${si % 8})` : colorAt(si)}
+                        stroke={report ? "#111" : undefined}
+                        strokeWidth={report ? 0.7 : undefined}
                       />
                     );
                   })}
@@ -188,7 +202,14 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
                 .join(" ");
               return (
                 <g key={s.key}>
-                  <polyline className="loom-line" points={points} fill="none" stroke={colorAt(si)} strokeWidth={2} />
+                  <polyline
+                    className="loom-line"
+                    points={points}
+                    fill="none"
+                    stroke={report ? reportGrayAt(si) : colorAt(si)}
+                    strokeWidth={report ? 2.4 : 2}
+                    strokeDasharray={report ? reportDashAt(si) : undefined}
+                  />
                   {s.values.map((v, i) => {
                     const x = MARGIN.left + i * bandWidth + bandWidth / 2;
                     const h = domainMax > 0 ? (v / domainMax) * plotH : 0;
@@ -200,8 +221,10 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
                         style={{ animationDelay: `${i * 25}ms` }}
                         cx={x}
                         cy={y}
-                        r={2.75}
-                        fill={colorAt(si)}
+                        r={report ? 3.25 : 2.75}
+                        fill={report ? "#fff" : colorAt(si)}
+                        stroke={report ? reportGrayAt(si) : undefined}
+                        strokeWidth={report ? 1.5 : undefined}
                       />
                     );
                   })}
@@ -290,11 +313,15 @@ function PieChart({
   rows,
   xKey,
   yKey,
+  report,
+  patternPrefix,
 }: {
   spec: ChartSpec;
   rows: DataRecord[];
   xKey: string;
   yKey: string | undefined;
+  report: boolean;
+  patternPrefix: string;
 }) {
   if (!yKey) {
     return <p style={{ color: "var(--dim)", fontSize: 13 }}>{EMPTY_MESSAGE}</p>;
@@ -363,7 +390,7 @@ function PieChart({
                 width: 9,
                 height: 9,
                 borderRadius: 2,
-                background: s.color,
+                background: report ? reportGrayAt(i) : s.color,
                 display: "inline-block",
                 flex: "none",
               }}
@@ -377,10 +404,11 @@ function PieChart({
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}
       >
-        <style>{`
+        {report && <ReportPatterns prefix={patternPrefix} />}
+        {!report && <style>{`
           .loom-slice { animation: loom-slice-in .4s ease both; transform-box: fill-box; transform-origin: center; }
           @keyframes loom-slice-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
-        `}</style>
+        `}</style>}
         <g>
           {slices.map((s, i) => {
             if (s.endAngle <= s.startAngle) return null;
@@ -392,8 +420,8 @@ function PieChart({
                 className="loom-slice"
                 style={{ animationDelay: `${i * 35}ms` }}
                 d={donutSlicePath(cx, cy, outerR, innerR, s.startAngle, cappedEnd)}
-                fill={s.color}
-                stroke="var(--bg)"
+                fill={report ? `url(#${patternPrefix}-pattern-${i % 8})` : s.color}
+                stroke={report ? "#fff" : "var(--bg)"}
                 strokeWidth={1}
               />
             );
@@ -437,6 +465,29 @@ function PieChart({
       </svg>
     </div>
   );
+}
+
+function ReportPatterns({ prefix }: { prefix: string }) {
+  return (
+    <defs>
+      {Array.from({ length: 8 }, (_, index) => (
+        <pattern key={index} id={`${prefix}-pattern-${index}`} width="8" height="8" patternUnits="userSpaceOnUse" patternTransform={index % 3 === 2 ? "rotate(45)" : undefined}>
+          <rect width="8" height="8" fill={reportGrayAt(index)} />
+          {index % 3 === 0 && <path d="M0 1h8 M0 5h8" stroke="#fff" strokeWidth="1.2" />}
+          {index % 3 === 1 && <path d="M1 0v8 M5 0v8" stroke="#fff" strokeWidth="1.2" />}
+          {index % 3 === 2 && <path d="M0 0v8" stroke="#fff" strokeWidth="2" />}
+        </pattern>
+      ))}
+    </defs>
+  );
+}
+
+export function reportGrayAt(i: number): string {
+  return ["#1a1a1a", "#555", "#888", "#333", "#707070", "#aaa", "#484848", "#929292"][i % 8] ?? "#1a1a1a";
+}
+
+export function reportDashAt(i: number): string | undefined {
+  return [undefined, "8 4", "3 3", "10 3 2 3", "1 3", "6 2 1 2", "12 4", "5 5"][i % 8];
 }
 
 function colorAt(i: number): string {
