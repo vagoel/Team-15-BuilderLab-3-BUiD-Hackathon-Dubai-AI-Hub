@@ -18,8 +18,8 @@ export function Findings({ spec, dataset }: { spec: FindingsSpec; dataset: Datas
     <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 10 }}>
       {items.map((f, i) => (
         <li key={i} style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
-          <span style={{ color: "var(--dim)", flex: "none", fontSize: 12.5 }}>—</span>
-          <div style={{ fontSize: 13.5, lineHeight: 1.5, color: "var(--mute)" }}>
+          <span aria-hidden style={{ color: "var(--accent)", flex: "none", fontSize: "var(--text-sm)" }}>•</span>
+          <div style={{ fontSize: "var(--text-sm)", lineHeight: 1.55, color: "var(--mute)" }}>
             {highlightNumbers(f.text)}
             {f.sourceIds.length > 0 && (
               <span style={{ marginLeft: 6 }}>
@@ -34,6 +34,7 @@ export function Findings({ spec, dataset }: { spec: FindingsSpec; dataset: Datas
                       target="_blank"
                       rel="noreferrer"
                       title={source?.title}
+                      aria-label={`Source ${idx}${source?.title ? `: ${source.title}` : ""} (opens in new tab)`}
                       style={{
                         fontSize: 10,
                         verticalAlign: "super",

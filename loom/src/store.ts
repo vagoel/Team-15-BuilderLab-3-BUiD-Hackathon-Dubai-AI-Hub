@@ -44,6 +44,9 @@ interface LoomState {
   progress: Progress | null;
   focusedId: string | null;
   error: string | null;
+  /** A prompt the canvas wants dropped into the chat input (e.g. an example chip click).
+   * The rail consumes it into its draft and focuses the input, then clears it. */
+  queuedPrompt: string | null;
 
   setSpec: (spec: UiSpec) => void;
   undo: () => UiSpec | null;
@@ -63,6 +66,7 @@ interface LoomState {
   setStatus: (s: Status) => void;
   setProgress: (p: Progress | null) => void;
   setError: (e: string | null) => void;
+  setQueuedPrompt: (p: string | null) => void;
   reset: () => void;
 }
 
@@ -78,6 +82,7 @@ export const useLoom = create<LoomState>((set, get) => ({
   progress: null,
   focusedId: null,
   error: null,
+  queuedPrompt: null,
 
   setSpec: (spec) =>
     set((s) => ({
@@ -226,8 +231,9 @@ export const useLoom = create<LoomState>((set, get) => ({
   setStatus: (status) => set({ status }),
   setProgress: (progress) => set({ progress }),
   setError: (error) => set({ error, status: error ? "error" : "idle" }),
+  setQueuedPrompt: (queuedPrompt) => set({ queuedPrompt }),
   reset: () =>
-    set({ spec: null, history: [], datasets: {}, messages: [], progress: null, error: null, status: "idle" }),
+    set({ spec: null, history: [], datasets: {}, messages: [], progress: null, error: null, status: "idle", queuedPrompt: null }),
 }));
 
 function clamp(n: number, lo: number, hi: number): number {

@@ -11,16 +11,28 @@ export function ChatPanel() {
   const messages = useLoom((s) => s.messages);
   const status = useLoom((s) => s.status);
   const progress = useLoom((s) => s.progress);
+  const queuedPrompt = useLoom((s) => s.queuedPrompt);
   const { status: voiceStatus, isSpeaking, muted, error, inputLevel, start, stop, toggleMute, sendText } =
     useVoiceSession();
 
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, status, progress]);
+
+  // An example prompt was clicked in the canvas: drop it into the input and focus so the
+  // user can start the mic (or send once connected). We don't auto-send — sendText needs a
+  // live session, and silently starting the mic on a click would be surprising.
+  useEffect(() => {
+    if (!queuedPrompt) return;
+    setDraft(queuedPrompt);
+    inputRef.current?.focus();
+    useLoom.getState().setQueuedPrompt(null);
+  }, [queuedPrompt]);
 
   const dotColor =
     voiceStatus === "error"
@@ -43,7 +55,7 @@ export function ChatPanel() {
       <style>{chatLocalStyles}</style>
 
       <header className="chat-head">
-        <span className="chat-word">Loom</span>
+        <span className="chat-word">Scry</span>
         <div className="chat-head-right">
           <ThemeToggle />
           <span className="chat-dot" style={{ background: dotColor }} title={`voice: ${voiceStatus}`} />
@@ -85,6 +97,7 @@ export function ChatPanel() {
           }}
         >
           <input
+            ref={inputRef}
             className="chat-input"
             type="text"
             placeholder="Type instead of talking…"
@@ -209,8 +222,10 @@ const chatLocalStyles = `
   flex: none;
 }
 .chat-word {
-  font-weight: 800;
-  font-size: 15px;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: var(--text-lg);
   letter-spacing: -0.01em;
 }
 .chat-dot {
@@ -223,9 +238,9 @@ const chatLocalStyles = `
 .chat-error {
   margin: 10px 14px 0;
   padding: 8px 10px;
-  border-radius: 8px;
-  background: rgba(255, 107, 107, 0.12);
-  border: 1px solid rgba(255, 107, 107, 0.35);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--bad) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--bad) 35%, transparent);
   color: var(--bad);
   font-size: 12.5px;
   line-height: 1.4;

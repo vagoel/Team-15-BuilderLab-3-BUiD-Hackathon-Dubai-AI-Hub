@@ -235,7 +235,7 @@ function ComparisonTableInner({ spec, dataset }: { spec: ComparisonTableSpec; da
       <div
         ref={scrollRef}
         className="scroll"
-        style={{ maxHeight: SCROLL_MAX_HEIGHT, overflow: "auto", position: "relative", border: "1px solid var(--line)", borderRadius: 8 }}
+        style={{ maxHeight: SCROLL_MAX_HEIGHT, overflow: "auto", position: "relative", border: "1px solid var(--line)", borderRadius: "var(--radius-md)" }}
       >
         <table
           style={{
@@ -244,7 +244,7 @@ function ComparisonTableInner({ spec, dataset }: { spec: ComparisonTableSpec; da
             tableLayout: "fixed",
             borderCollapse: "separate",
             borderSpacing: 0,
-            fontSize: 13,
+            fontSize: "var(--text-sm)",
           }}
         >
           <colgroup>
@@ -259,40 +259,39 @@ function ComparisonTableInner({ spec, dataset }: { spec: ComparisonTableSpec; da
                   const numeric = header.column.columnDef.meta?.numeric ?? false;
                   const sortDir = header.column.getIsSorted();
                   const canSort = header.column.getCanSort();
+                  // aria-sort tells assistive tech the current sort of this column; only
+                  // meaningful on sortable columns, so it stays undefined otherwise.
+                  const ariaSort = !canSort
+                    ? undefined
+                    : sortDir === "asc"
+                      ? "ascending"
+                      : sortDir === "desc"
+                        ? "descending"
+                        : "none";
+                  const label = header.isPlaceholder ? null : <table.FlexRender header={header} />;
                   return (
-                    <th
-                      key={header.id}
-                      onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
-                      style={{
-                        textAlign: numeric ? "right" : "left",
-                        padding: "8px 10px",
-                        borderBottom: "1px solid var(--line)",
-                        color: "var(--dim)",
-                        fontSize: 11,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        fontWeight: 700,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        background: "var(--panel-2)",
-                        position: "sticky",
-                        top: 0,
-                        zIndex: 2,
-                        cursor: canSort ? "pointer" : "default",
-                        userSelect: "none",
-                      }}
-                    >
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexDirection: numeric ? "row-reverse" : "row" }}>
-                        {header.isPlaceholder ? null : <table.FlexRender header={header} />}
-                        {canSort && (
-                          <span style={{ color: sortDir ? "var(--accent)" : "var(--dim)", fontSize: 9 }}>
+                    <th key={header.id} scope="col" aria-sort={ariaSort} style={headerCellStyle}>
+                      {canSort ? (
+                        // A real button so the sort is keyboard-operable (Enter/Space) and
+                        // gets the global focus-visible ring; a click-only <th> was mouse-only.
+                        <button
+                          type="button"
+                          onClick={header.column.getToggleSortingHandler()}
+                          style={{ ...headerButtonStyle, flexDirection: numeric ? "row-reverse" : "row" }}
+                        >
+                          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", textAlign: numeric ? "right" : "left" }}>
+                            {label}
+                          </span>
+                          <span aria-hidden style={{ flex: "none", color: sortDir ? "var(--accent)" : "var(--dim)", fontSize: 9 }}>
                             {sortDir === "asc" ? "▲" : sortDir === "desc" ? "▼" : "⋮"}
                           </span>
-                        )}
-                      </span>
+                        </button>
+                      ) : (
+                        <div style={{ ...headerButtonStyle, cursor: "default", textAlign: numeric ? "right" : "left" }}>{label}</div>
+                      )}
                       {header.column.getCanResize() && (
                         <div
+                          aria-hidden
                           onMouseDown={header.getResizeHandler()}
                           onTouchStart={header.getResizeHandler()}
                           onClick={(e) => e.stopPropagation()}
@@ -336,7 +335,8 @@ function ComparisonTableInner({ spec, dataset }: { spec: ComparisonTableSpec; da
               const row = tableRows[vRow.index];
               if (!row) return null;
               const isHighlighted = highlightedRows?.has(row.original) ?? false;
-              const zebra = vRow.index % 2 === 1 ? "var(--panel-2)" : "transparent";
+              // Editorial data-desk: hairline row rules carry the scan, not zebra fills.
+              const zebra = "transparent";
               return (
                 <tr
                   key={row.id}
@@ -362,6 +362,7 @@ function ComparisonTableInner({ spec, dataset }: { spec: ComparisonTableSpec; da
                           padding: "7px 10px",
                           borderBottom: "1px solid var(--line-soft)",
                           color: "var(--ink)",
+                          fontFamily: numeric ? "var(--font-mono)" : undefined,
                           fontVariantNumeric: numeric ? "tabular-nums" : undefined,
                           whiteSpace: "nowrap",
                           overflow: "hidden",
@@ -509,13 +510,38 @@ function rangeFromDraft(draft: { min: string; max: string }): NumberRange | unde
   return validMin === undefined && validMax === undefined ? undefined : { min: validMin, max: validMax };
 }
 
+const headerCellStyle: React.CSSProperties = {
+  padding: 0,
+  borderBottom: "1px solid var(--line)",
+  background: "var(--panel-2)",
+  position: "sticky",
+  top: 0,
+  zIndex: "var(--z-sticky)" as unknown as number,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+};
+
+const headerButtonStyle: React.CSSProperties = {
+  width: "100%",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  padding: "8px 10px",
+  color: "var(--dim)",
+  fontSize: 11,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+  fontWeight: 700,
+  userSelect: "none",
+};
+
 const filterCellStyle: React.CSSProperties = {
   padding: "5px 8px",
   borderBottom: "1px solid var(--line)",
   background: "var(--panel-2)",
   position: "sticky",
   top: ROW_HEIGHT,
-  zIndex: 2,
+  zIndex: "var(--z-sticky)" as unknown as number,
 };
 
 const textInputStyle: React.CSSProperties = {
@@ -523,9 +549,9 @@ const textInputStyle: React.CSSProperties = {
   boxSizing: "border-box",
   background: "var(--panel)",
   border: "1px solid var(--line)",
-  borderRadius: 5,
+  borderRadius: "var(--radius-sm)",
   color: "var(--ink)",
-  fontSize: 12,
+  fontSize: "var(--text-xs)",
   padding: "4px 6px",
 };
 
@@ -534,8 +560,8 @@ const numberInputStyle: React.CSSProperties = {
   boxSizing: "border-box",
   background: "var(--panel)",
   border: "1px solid var(--line)",
-  borderRadius: 5,
+  borderRadius: "var(--radius-sm)",
   color: "var(--ink)",
-  fontSize: 12,
+  fontSize: "var(--text-xs)",
   padding: "4px 6px",
 };
