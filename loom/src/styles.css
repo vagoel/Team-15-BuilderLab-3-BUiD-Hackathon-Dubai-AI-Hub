@@ -36,6 +36,7 @@
   --series-8: #9a7b06;
   --r: 10px;
   --chat-w: 340px;
+  --rail-w: 210px;
   color-scheme: light;
 }
 
@@ -124,10 +125,81 @@ button {
 
 /* ---------- app shell ---------- */
 
+/* Template rail, conversation rail, canvas. The first column is a collapsed strip
+   until the user opens it, so the canvas keeps essentially all of its width. */
 .app {
   display: grid;
-  grid-template-columns: var(--chat-w) 1fr;
+  grid-template-columns: auto var(--chat-w) 1fr;
   height: 100%;
+}
+
+.rail {
+  width: var(--rail-w);
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.rail--collapsed {
+  width: 44px;
+  align-items: center;
+  padding-top: 14px;
+  gap: 8px;
+}
+
+.rail-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  color: var(--dim);
+  transition: color 0.2s, background 0.2s;
+}
+
+.rail-toggle:hover {
+  color: var(--ink);
+  background: var(--panel-2);
+}
+
+/* Shows a template is selected while the rail is collapsed. */
+.rail-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.gallery-item {
+  min-width: 0;
+}
+
+.gallery-item img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel-2);
+  display: block;
+}
+
+.gallery-item figcaption {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat {
@@ -225,6 +297,16 @@ button {
   margin-bottom: 12px;
 }
 
+/* One quiet line under a card heading: what this card is showing, as opposed to
+   what it is. Sits above the content, below the uppercase title. */
+.card-subtitle {
+  font-size: 12.5px;
+  color: var(--dim);
+  margin-top: -6px;
+  margin-bottom: 12px;
+  line-height: 1.45;
+}
+
 /* Primary weight: the chart and table are the artifacts the page is for. */
 .card-primary {
   background: var(--panel-2);
@@ -241,12 +323,20 @@ button {
   margin-bottom: 10px;
 }
 
+/* The adaptive layout only ever uses 4/5/7/8/12, but a template can pin any width,
+   so every column count has a class. */
 .span-12 { grid-column: span 12; }
+.span-11 { grid-column: span 11; }
+.span-10 { grid-column: span 10; }
+.span-9 { grid-column: span 9; }
 .span-8 { grid-column: span 8; }
 .span-7 { grid-column: span 7; }
 .span-6 { grid-column: span 6; }
 .span-5 { grid-column: span 5; }
 .span-4 { grid-column: span 4; }
+.span-3 { grid-column: span 3; }
+.span-2 { grid-column: span 2; }
+.span-1 { grid-column: span 1; }
 
 /* Caps the chart's plot area so four bars don't render at 500px tall — the SVG keeps
    its own aspect ratio (preserveAspectRatio defaults to "meet"), it just stops growing. */
@@ -374,4 +464,493 @@ button {
 .canvas::-webkit-scrollbar-thumb {
   background: var(--scroll-thumb);
   border-radius: 9px;
+}
+
+.canvas-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.canvas-report-button,
+.report-button {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 11px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.canvas-report-button:hover,
+.report-button:hover {
+  border-color: var(--accent);
+}
+
+.canvas-report-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.report-preview {
+  --report-ink: #111;
+  --report-muted: #555;
+  --report-rule: #c8c8c8;
+  --report-rhythm: 14pt;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #d9dce1;
+  color: var(--report-ink);
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  font-optical-sizing: auto;
+  font-synthesis: none;
+}
+
+.report-toolbar {
+  flex: none;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 10px 20px;
+  background: #fff;
+  border-bottom: 1px solid #c4c8cf;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.report-toolbar strong,
+.report-toolbar span {
+  display: block;
+}
+
+.report-toolbar strong {
+  font-size: 14px;
+}
+
+.report-toolbar span {
+  margin-top: 2px;
+  color: #626873;
+  font-size: 11px;
+}
+
+.report-toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.report-button-primary {
+  border-color: #315fc5;
+  background: #3767d6;
+  color: #fff;
+}
+
+.report-print-error {
+  flex: none;
+  padding: 9px 20px;
+  background: #fff0f0;
+  border-bottom: 1px solid #dca4a4;
+  color: #8a2020;
+  font-size: 12px;
+  text-align: center;
+}
+
+.report-pasteboard {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 26px;
+}
+
+.report-sheet {
+  width: 297mm;
+  max-width: 100%;
+  min-height: 210mm;
+  margin: 0 auto;
+  padding: 14mm 15mm 16mm;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(24, 28, 34, 0.2);
+  font-size: 10.5pt;
+  line-height: 1.35;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.report-masthead {
+  padding-bottom: var(--report-rhythm);
+  border-bottom: 1.5px solid #111;
+}
+
+.report-brand {
+  margin-bottom: 7pt;
+  color: var(--report-muted);
+  font-size: 8.5pt;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.report-masthead h1 {
+  max-width: 27ch;
+  font-size: 23pt;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.report-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 11pt 24pt;
+  margin-top: var(--report-rhythm);
+}
+
+.report-metadata div {
+  display: flex;
+  gap: 5pt;
+}
+
+.report-metadata dt {
+  color: var(--report-muted);
+  font-size: 8.5pt;
+  font-weight: 650;
+}
+
+.report-metadata dd {
+  font-size: 8.5pt;
+}
+
+.report-section {
+  margin-top: calc(var(--report-rhythm) * 2);
+}
+
+.report-section h2 {
+  margin-bottom: var(--report-rhythm);
+  border-bottom: 0.75px solid var(--report-rule);
+  padding-bottom: 5pt;
+  font-size: 13.5pt;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.report-section-stat_cards,
+.report-section-chart,
+.report-findings li,
+.report-sources li {
+  break-inside: avoid;
+}
+
+.report-section .stat-row {
+  grid-template-columns: repeat(auto-fit, minmax(110pt, 1fr));
+  gap: 14pt;
+}
+
+.report-section .stat-item {
+  border-left: 2px solid #333;
+  padding-left: 9pt;
+}
+
+.report-section .stat-value {
+  color: #111;
+  font-size: 21pt;
+}
+
+.report-section .stat-label,
+.report-section .stat-meta {
+  color: var(--report-muted);
+}
+
+.report-section-chart > div {
+  max-width: 720pt;
+}
+
+.report-section-chart svg {
+  max-height: 235pt;
+}
+
+.report-table-wrap {
+  width: 100%;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 9pt;
+  line-height: 1.25;
+}
+
+.report-table caption {
+  margin-bottom: 6pt;
+  color: var(--report-muted);
+  font-size: 8.5pt;
+  text-align: left;
+}
+
+.report-table th,
+.report-table td {
+  border-bottom: 0.55px solid var(--report-rule);
+  padding: 4pt 6pt 4pt 3pt;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.report-table th {
+  border-top: 1px solid #555;
+  border-bottom: 1px solid #555;
+  background: #fff;
+  font-size: 8.5pt;
+  font-weight: 750;
+}
+
+.report-table .report-number {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.report-table tr {
+  break-inside: avoid;
+}
+
+.report-highlighted td:first-child {
+  border-left: 2.5px solid #111;
+  padding-left: 5pt;
+}
+
+.report-highlight-marker {
+  display: block;
+  margin-bottom: 2pt;
+  font-size: 7.5pt;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.report-findings {
+  display: grid;
+  gap: 8pt;
+  padding-left: 18pt;
+}
+
+.report-findings li {
+  padding-left: 3pt;
+  orphans: 3;
+  widows: 3;
+}
+
+.report-findings sup {
+  margin-left: 4pt;
+  font-size: 8pt;
+  font-weight: 750;
+}
+
+.report-sources {
+  display: grid;
+  gap: 9pt;
+  padding-left: 20pt;
+  font-size: 9pt;
+}
+
+.report-sources li {
+  padding-left: 3pt;
+}
+
+.report-sources a {
+  color: #111;
+  font-weight: 650;
+  text-decoration-thickness: 0.6px;
+  text-underline-offset: 1.5px;
+}
+
+.report-sources span,
+.report-source-url {
+  display: block;
+  margin-top: 1.5pt;
+  color: var(--report-muted) !important;
+  font-size: 8pt;
+  font-weight: 400 !important;
+  overflow-wrap: anywhere;
+}
+
+/* Three to a row prints two rows per page at A4 without a figure ever splitting
+   across the page break — `break-inside: avoid` is what keeps a caption with its
+   picture rather than orphaning it at the top of the next sheet. */
+.report-images {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9pt;
+}
+
+.report-images figure {
+  break-inside: avoid;
+  margin: 0;
+}
+
+.report-images img {
+  display: block;
+  width: 100%;
+  height: 88pt;
+  object-fit: cover;
+  border: 0.75px solid var(--report-rule);
+}
+
+.report-images figcaption {
+  margin-top: 3pt;
+  color: var(--report-muted);
+  font-size: 8pt;
+  overflow-wrap: anywhere;
+}
+
+.report-empty {
+  color: var(--report-muted);
+  font-style: italic;
+}
+
+.report-footer {
+  margin-top: calc(var(--report-rhythm) * 3);
+  border-top: 0.75px solid var(--report-rule);
+  padding-top: 7pt;
+  color: var(--report-muted);
+  font-size: 8pt;
+}
+
+@media (max-width: 720px) {
+  .canvas-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .canvas-head-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .report-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .report-toolbar-actions {
+    width: 100%;
+  }
+
+  .report-toolbar-actions .report-button {
+    flex: 1;
+  }
+
+  .report-pasteboard {
+    padding: 10px;
+  }
+
+  .report-sheet {
+    padding: 22px 18px 28px;
+  }
+
+  .report-masthead h1 {
+    font-size: 19pt;
+  }
+}
+
+@page {
+  size: A4 landscape;
+  margin: 14mm 15mm 16mm;
+
+  @top-left {
+    content: "Loom Research Report";
+    color: #666;
+    font-size: 8pt;
+  }
+
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    color: #666;
+    font-size: 8pt;
+  }
+}
+
+@media print {
+  html,
+  body,
+  #root {
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  .app,
+  .report-toolbar,
+  .report-print-error {
+    display: none !important;
+  }
+
+  .report-preview,
+  .report-pasteboard {
+    position: static !important;
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  .report-sheet {
+    width: auto !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    color: #000 !important;
+    font-size: 10.5pt;
+  }
+
+  .report-sheet *,
+  .report-sheet *::before,
+  .report-sheet *::after {
+    animation: none !important;
+    transition: none !important;
+    filter: none !important;
+  }
+
+  .report-section h2 {
+    break-after: avoid;
+  }
+
+  .report-table {
+    break-inside: auto;
+  }
+
+  .report-table thead {
+    display: table-header-group;
+  }
+
+  .report-table tbody {
+    display: table-row-group;
+  }
+
+  .report-table tr {
+    break-inside: avoid;
+  }
+
+  .report-section-chart svg,
+  .report-highlighted td:first-child {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .report-section-chart svg {
+    overflow: visible !important;
+  }
+
+  .report-sources a {
+    color: #000 !important;
+  }
 }

@@ -4,6 +4,7 @@ import type { UiComponentSpec } from "../contract/ui.js";
 import { Chart } from "./components/Chart.js";
 import { ComparisonTable } from "./components/ComparisonTable.js";
 import { Findings } from "./components/Findings.js";
+import { ImageGallery } from "./components/ImageGallery.js";
 import { SourceList } from "./components/SourceList.js";
 import { StatCards } from "./components/StatCards.js";
 
@@ -23,6 +24,8 @@ export function renderComponent(spec: UiComponentSpec, dataset: Dataset | undefi
       return <SourceList dataset={dataset} />;
     case "findings":
       return <Findings spec={spec} dataset={dataset} />;
+    case "image_gallery":
+      return <ImageGallery spec={spec} dataset={dataset} />;
     default: {
       const exhaustive: never = spec;
       return exhaustive;

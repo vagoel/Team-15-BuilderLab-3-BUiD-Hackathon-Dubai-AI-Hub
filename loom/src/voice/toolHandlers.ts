@@ -1,17 +1,21 @@
 import { z } from "zod";
 import {
+  CollectSourcesParams,
   DeepenParams,
+  SearchWebParams,
+  SetResearchFindingsParams,
+  UseDirectUrlsParams,
   FocusComponentParams,
   GetUiStateParams,
   ReadSourceParams,
   MockDataParams,
   RenderUiParams,
-  ResearchParams,
   AddComponentParams,
   MoveComponentParams,
   RemoveComponentParams,
   ClearCanvasParams,
   ExportDataParams,
+  ExportReportParams,
   HighlightRowsParams,
   ScrollComponentParams,
   ScrollPageParams,
@@ -24,10 +28,22 @@ import {
 } from "../contract/tools.js";
 import { buildComponent, buildLayout, defaultLayout } from "../canvas/autoLayout.js";
 import { csvToTable } from "../research/csv.js";
-import { applyFilters } from "../lib/filter.js";
+import { applyFilters, selectRows } from "../lib/filter.js";
+import { buildReportModel } from "../report/reportModel.js";
 import { useLoom } from "../store.js";
-import { deepenResearch, getDataset, readSource, runResearch } from "../research/index.js";
+import {
+  datasetHasSource,
+  deepenResearch,
+  getDataset,
+  readSource,
+  registerDirectUrls,
+  runResearch,
+  searchForSources,
+} from "../research/index.js";
 import type { ResearchHooks } from "../research/index.js";
+import { LIMITS } from "../contract/artifacts.js";
+import { applyTemplate } from "../canvas/templateLayout.js";
+import { activeTemplate } from "../templates/templateStore.js";
 import { UiComponentSpec } from "../contract/ui.js";
 import type { Dataset } from "../contract/index.js";
 
@@ -156,90 +172,169 @@ function describeErr(err: unknown): string {
 // Handlers
 // ---------------------------------------------------------------------------
 
-async function handleResearch(raw: unknown): Promise<unknown> {
-  const parsed = parseParams(ResearchParams, raw);
-  if (!parsed.ok) return errorMessage("research", parsed.error);
-  const { question, seedUrls, fields, mode = "replace" } = parsed.data;
-  const append = mode === "add";
+/**
+ * Discovery. Returns candidates the agent then picks from by index.
+ *
+ * Split from retrieval on purpose: the agent should choose from titles and
+ * descriptions of pages that genuinely exist, rather than composing a URL that
+ * sounds right. A made-up URL has nowhere to enter the system after this.
+ */
+async function handleSearchWeb(raw: unknown): Promise<unknown> {
+  const parsed = parseParams(SearchWebParams, raw);
+  if (!parsed.ok) return errorMessage("search_web", parsed.error);
+  const { query } = parsed.data;
 
-  toolMessage(
-    `research → "${question}" across ${seedUrls.length} source${seedUrls.length === 1 ? "" : "s"} ` +
-      `(fields: ${fields.map((f) => f.key).join(", ")})`,
-  );
+  toolMessage(`search_web → "${query}"`);
+  try {
+    const set = await searchForSources(query);
+    if (!set.candidates.length) {
+      return errorMessage("search_web", `nothing came back for "${query}" — try different wording`);
+    }
+    toolMessage(`found ${set.candidates.length} candidates`);
+    return {
+      sourceSetId: set.id,
+      candidates: set.candidates.map((c) => ({
+        index: c.index,
+        title: c.title,
+        url: c.url,
+        description: c.description,
+      })),
+      note:
+        "Pick the indexes worth reading and call collect_sources with this sourceSetId. " +
+        "Do not pass URLs — only indexes from this list.",
+    };
+  } catch (err) {
+    return errorMessage("search_web", describeErr(err));
+  }
+}
+
+/** The one sanctioned bypass: URLs the user said out loud. */
+async function handleUseDirectUrls(raw: unknown): Promise<unknown> {
+  const parsed = parseParams(UseDirectUrlsParams, raw);
+  if (!parsed.ok) return errorMessage("use_direct_urls", parsed.error);
+  const { topic, urls } = parsed.data;
+
+  try {
+    const set = registerDirectUrls(topic, urls);
+    toolMessage(`use_direct_urls → ${set.candidates.length} url(s)`);
+    return {
+      sourceSetId: set.id,
+      candidates: set.candidates.map((c) => ({ index: c.index, title: c.title, url: c.url })),
+      note: "Now call collect_sources with this sourceSetId and the indexes you want.",
+    };
+  } catch (err) {
+    return errorMessage("use_direct_urls", describeErr(err));
+  }
+}
+
+async function handleCollectSources(raw: unknown): Promise<unknown> {
+  const parsed = parseParams(CollectSourcesParams, raw);
+  if (!parsed.ok) return errorMessage("collect_sources", parsed.error);
+  const { question, sourceSetId, indexes, mode, crawlPages, report_mode = "replace" } = parsed.data;
+  const append = report_mode === "add";
+
+  toolMessage(`collect_sources → ${indexes.length} source(s) via ${mode}`);
 
   const store = useLoom.getState();
   store.setStatus("researching");
-  store.setProgress({ label: "Starting research", done: 0, total: seedUrls.length });
+  store.setProgress({ label: "Starting research", done: 0, total: indexes.length });
 
   const hooks: ResearchHooks = {
     onStart: (datasetId) => {
-      // Extraction runs ~20s against a cold page. Without this the canvas is blank
-      // for that whole stretch and the app looks dead. Mount the source list right
-      // away so rows appear in about a second and fill in as pages land; the agent
-      // replaces this with the real dashboard when research returns.
-      //
-      // Only when the canvas is empty — if a dashboard is already up, leaving it
-      // there beats blanking it to show three loading rows.
+      // Retrieval takes seconds. Without this the canvas is blank for that whole
+      // stretch and the app looks dead. Only when nothing is already up.
       if (useLoom.getState().spec) return;
       useLoom.getState().setSpec({
         title: question,
         layout: "stack",
-        components: [
-          { id: "provisional_sources", type: "source_list", title: "Reading now", datasetId },
-        ],
+        components: [{ id: "provisional_sources", type: "source_list", title: "Reading now", datasetId }],
       });
       useLoom.getState().setStatus("researching");
     },
-    onProgress: (done, total, label) => {
-      useLoom.getState().setProgress({ label, done, total });
-    },
-    onSourceFound: (s) => {
-      toolMessage(`found source: ${s.title || s.url}`);
-    },
-    onSourceRead: (sourceId, ms, cached) => {
-      toolMessage(`read ${sourceId} in ${ms}ms${cached ? " (cached)" : ""}`);
-    },
-    onSourceFailed: (sourceId, error) => {
-      toolMessage(`could not read ${sourceId}: ${error}`);
-    },
+    onProgress: (done, total, label) => useLoom.getState().setProgress({ label, done, total }),
+    onSourceFound: (s) => toolMessage(`found source: ${s.title || s.url}`),
+    onSourceRead: (sourceId, ms, cached) =>
+      toolMessage(`read ${sourceId} in ${Math.round(ms)}ms${cached ? " (cached)" : ""}`),
+    onSourceFailed: (sourceId, error) => toolMessage(`could not read ${sourceId}: ${error}`),
   };
 
   try {
-    const summary = await runResearch({ question, seedUrls, fields }, hooks);
+    const summary = await runResearch(
+      { question, sourceSetId, indexes, mode, ...(crawlPages ? { crawlPages } : {}) },
+      hooks,
+    );
     const full = getDataset(summary.datasetId);
     if (full) useLoom.getState().addDataset(full);
     useLoom.getState().setProgress(null);
     useLoom.getState().setStatus("ready");
-    toolMessage(`research done: ${summary.recordCount} records from ${summary.sourceCount} sources`);
+    toolMessage(`collected: ${summary.recordCount} rows from ${summary.sourceCount} sources`);
 
-    // Mount a dashboard here rather than waiting for the agent to ask for one. The
-    // screen filling up is the whole product, and it must not depend on the model
-    // getting a follow-up tool call right. render_ui then only handles changes.
-    // In add mode the new dataset joins the report instead of replacing it — same
-    // path mock_data takes, so the two tools cannot drift.
-    if (full) {
-      const spec = mountDataset(full, append);
-      toolMessage(
-        `${append ? "added to report" : "auto-rendered"} → ${spec.components.map((c) => c.type).join(", ")}`,
-      );
-      return {
-        ...summary,
-        rendered: spec.components.map((c) => c.type),
-        mode,
-        note:
-          (append
-            ? "The new research has been ADDED to the existing report. "
-            : "A dashboard is already on screen showing " +
-              `${spec.components.map((c) => c.type).join(", ")}. `) +
-          "Do NOT call render_ui now — just say one short sentence about what the user can see.",
-      };
-    }
-    return summary;
+    if (!full) return summary;
+
+    const { spec, omitted } = mountDataset(full, append);
+    toolMessage(`${append ? "added to report" : "rendered"} → ${spec.components.map((c) => c.type).join(", ")}`);
+
+    // Said explicitly because it is the honest, and unfamiliar, outcome: pages
+    // without tables produce no rows, and the agent must not imply otherwise.
+    const rowNote =
+      summary.recordCount === 0
+        ? "NO table rows were produced — those pages are prose. Do not describe rows, a table " +
+          "or a chart. Read a source and add cited findings instead."
+        : `${summary.recordCount} rows came from real tables on those pages.`;
+
+    return {
+      ...summary,
+      rendered: spec.components.map((c) => c.type),
+      reportMode: report_mode,
+      ...(omitted.length ? { templateSlotsOmitted: omitted } : {}),
+      note:
+        `${rowNote} A dashboard is already on screen. Do NOT call render_ui — ` +
+        "say one short sentence about what the user can see.",
+    };
   } catch (err) {
     useLoom.getState().setProgress(null);
     useLoom.getState().setStatus(useLoom.getState().spec ? "ready" : "idle");
-    return errorMessage("research", describeErr(err));
+    return errorMessage("collect_sources", describeErr(err));
   }
+}
+
+/**
+ * Findings the agent read for itself.
+ *
+ * Every finding must name a source that belongs to this dataset. Without that check
+ * this tool is a licence to write anything into the report and have it look
+ * researched — which is precisely the failure the raw pipeline exists to prevent.
+ */
+async function handleSetResearchFindings(raw: unknown): Promise<unknown> {
+  const parsed = parseParams(SetResearchFindingsParams, raw);
+  if (!parsed.ok) return errorMessage("set_research_findings", parsed.error);
+  const { datasetId, findings } = parsed.data;
+
+  const dataset = useLoom.getState().datasets[datasetId];
+  if (!dataset) {
+    const known = Object.keys(useLoom.getState().datasets);
+    return errorMessage(
+      "set_research_findings",
+      `unknown datasetId ${datasetId}. ` + (known.length ? `Use one of: ${known.join(", ")}` : "Research something first."),
+    );
+  }
+
+  const bad = findings.filter((f) => !datasetHasSource(datasetId, f.sourceId));
+  if (bad.length) {
+    return errorMessage(
+      "set_research_findings",
+      `these sourceIds are not in this dataset: ${bad.map((f) => f.sourceId).join(", ")}. ` +
+        `Valid ids: ${dataset.sources.map((s) => s.id).join(", ")}`,
+    );
+  }
+
+  // Keep the mechanical findings (row counts, ranges) and add the cited ones after.
+  const mechanical = dataset.findings.filter((f) => f.sourceIds.length === 0);
+  const cited = findings.map((f) => ({ text: f.text, sourceIds: [f.sourceId] }));
+  useLoom.getState().upsertDataset(datasetId, { findings: [...cited, ...mechanical].slice(0, 8) });
+
+  toolMessage(`set_research_findings → ${cited.length} cited finding(s)`);
+  return `Added ${cited.length} finding${cited.length === 1 ? "" : "s"} to the report.`;
 }
 
 async function handleDeepen(raw: unknown): Promise<unknown> {
@@ -297,7 +392,10 @@ async function handleReadSource(raw: unknown): Promise<unknown> {
 
   try {
     const page = await readSource(sourceId);
-    const excerpt = page.markdown.length > 1500 ? `${page.markdown.slice(0, 1500)}…` : page.markdown;
+    const excerpt =
+      page.markdown.length > LIMITS.maxExcerptChars
+        ? `${page.markdown.slice(0, LIMITS.maxExcerptChars)}…`
+        : page.markdown;
     return { title: page.title, url: page.url, excerpt };
   } catch (err) {
     return errorMessage("read_source", describeErr(err));
@@ -569,7 +667,14 @@ async function handleExportData(raw: unknown): Promise<unknown> {
     // shows 12 filtered ones is not what "export this" means.
     const component = componentId ? state.spec?.components.find((c) => c.id === componentId) : undefined;
     const filters = component && "filters" in component ? component.filters : [];
-    const rows = applyFilters(dataset.records, filters);
+    const tableViewFilter = component?.type === "comparison_table" ? state.tableViewFilters[component.id] : undefined;
+    const manualFilters = tableViewFilter?.datasetId === datasetId ? tableViewFilter.filters : [];
+    const rows = selectRows(
+      dataset.records,
+      [...filters, ...manualFilters],
+      component?.type === "comparison_table" ? component.sort : undefined,
+      dataset.fields,
+    );
     const fields = dataset.fields.filter((f) => f.key !== "_source");
 
     const escape = (v: unknown) => {
@@ -590,10 +695,35 @@ async function handleExportData(raw: unknown): Promise<unknown> {
     setTimeout(() => URL.revokeObjectURL(url), 5_000);
 
     toolMessage(`export_data → ${name} (${rows.length} rows)`);
-    return `Downloaded ${rows.length} rows as ${name}${filters.length ? " — the filtered rows only" : ""}.`;
+    return `Downloaded ${rows.length} rows as ${name}${filters.length || manualFilters.length ? " — the filtered rows only" : ""}.`;
   } catch (err) {
     return errorMessage("export_data", describeErr(err));
   }
+}
+
+async function handleExportReport(raw: unknown): Promise<unknown> {
+  const parsed = parseParams(ExportReportParams, raw);
+  if (!parsed.ok) return errorMessage("export_report", parsed.error);
+  const state = useLoom.getState();
+  if (!state.spec) return "There is no report to export yet. Finish a research request first.";
+  if (state.status === "researching") return "The report is still being researched. Please wait for the final dashboard before exporting it.";
+
+  if (parsed.data.action === "print") {
+    if (!state.reportPreview.open) {
+      state.openReportPreview();
+      toolMessage("export_report → preview");
+      return "I opened the PDF preview first. Review it, then ask me to print it or choose Print / Save PDF.";
+    }
+    state.requestReportPrint();
+    toolMessage("export_report → print");
+    return "Opening the browser print dialog. Choose Save as PDF to download the report.";
+  }
+
+  state.openReportPreview();
+  const latest = useLoom.getState();
+  const model = buildReportModel(latest.spec!, latest.datasets, latest.tableViewFilters, latest.reportPreview.openedAt ?? Date.now());
+  toolMessage(`export_report → preview (${model.sections.length} sections)`);
+  return `Opened the PDF preview with ${model.sections.length} sections, ${model.rowCount} table rows, and ${model.sourceCount} sources.`;
 }
 
 async function handleSortTable(raw: unknown): Promise<unknown> {
@@ -624,7 +754,7 @@ async function handleMockData(raw: unknown): Promise<unknown> {
     const datasetId = dataset.id;
 
     store.addDataset(dataset);
-    const spec = mountDataset(dataset, mode === "add");
+    const { spec } = mountDataset(dataset, mode === "add");
     store.setProgress(null);
     store.setStatus("ready");
     toolMessage(`${mode === "add" ? "added to report" : "auto-rendered"} → ${spec.components.map((c) => c.type).join(", ")}`);
@@ -660,14 +790,22 @@ async function handleMockData(raw: unknown): Promise<unknown> {
  * (its numbers and its rows) rather than another five cards, and every id is suffixed
  * so two tables can coexist and be addressed separately.
  */
-function mountDataset(dataset: Dataset, append: boolean) {
+function mountDataset(dataset: Dataset, append: boolean): { spec: ReturnType<typeof defaultLayout>; omitted: string[] } {
   const store = useLoom.getState();
   const existing = store.spec;
+  // The pinned snapshot, not the current selection: a session renders through the
+  // template the agent was told about at startup, even if the list changed since.
+  const template = activeTemplate();
 
   if (!append || !existing) {
+    if (template) {
+      const { spec, omitted } = applyTemplate(dataset, template);
+      store.setSpec(spec);
+      return { spec, omitted };
+    }
     const spec = defaultLayout(dataset);
     store.setSpec(spec);
-    return spec;
+    return { spec, omitted: [] };
   }
 
   const suffix = `__${dataset.id.replace(/^ds_/, "")}`;
@@ -677,7 +815,7 @@ function mountDataset(dataset: Dataset, append: boolean) {
   if (room <= 0) {
     // Nothing sensible to drop on the user's behalf — say so rather than silently
     // truncating a report they are still building.
-    return existing;
+    return { spec: existing, omitted: [] };
   }
 
   const merged = {
@@ -686,7 +824,7 @@ function mountDataset(dataset: Dataset, append: boolean) {
     components: [...existing.components, ...addition.components.slice(0, room)],
   };
   store.setSpec(merged);
-  return merged;
+  return { spec: merged, omitted: [] };
 }
 
 /**
@@ -898,7 +1036,10 @@ async function handleGetUiState(raw: unknown): Promise<unknown> {
 
 export function createToolHandlers(): Record<string, (params: any) => Promise<any>> {
   const handlers = {
-    research: handleResearch,
+    search_web: handleSearchWeb,
+    use_direct_urls: handleUseDirectUrls,
+    collect_sources: handleCollectSources,
+    set_research_findings: handleSetResearchFindings,
     deepen: handleDeepen,
     read_source: handleReadSource,
     render_ui: handleRenderUi,
@@ -915,6 +1056,7 @@ export function createToolHandlers(): Record<string, (params: any) => Promise<an
     undo: handleUndo,
     clear_canvas: handleClearCanvas,
     export_data: handleExportData,
+    export_report: handleExportReport,
     highlight_rows: handleHighlightRows,
     get_ui_state: handleGetUiState,
   } satisfies Record<ToolName, (params: any) => Promise<any>>;

@@ -6,7 +6,7 @@ import { ComponentKind, Filter } from "./ui.js";
  *
  * Every tool currently runs in the browser: there is no backend yet, so the research
  * tools reach context.dev through the Vite dev proxy (which holds the key). The
- * `kind` field is kept because moving `research` back behind a server is a one-line
+ * `kind` field is kept because moving research back behind a server is a one-line
  * change here plus a webhook URL — nothing else in the app knows the difference.
  *
  * The server imports this to validate incoming calls. The agent-config generator
@@ -33,36 +33,61 @@ const def = <S extends z.ZodType>(d: ToolDef<S>) => d;
 // Server tools — the agent's eyes on the live web.
 // ---------------------------------------------------------------------------
 
-export const ResearchParams = z.object({
-  question: z.string().describe("The research question, in full, as the user asked it."),
-  seedUrls: z
+export const SearchWebParams = z.object({
+  query: z
+    .string()
+    .describe("What to search the web for. Write it as a search query, not as a sentence to the user."),
+});
+
+export const UseDirectUrlsParams = z.object({
+  topic: z.string().describe("What these pages are about, in a few words."),
+  urls: z
     .array(z.string())
     .min(1)
     .max(8)
-    .describe("The pages to read. Pick real, specific URLs likely to carry the answer."),
-  fields: z
-    .array(
-      z.object({
-        key: z.string().describe("snake_case identifier, e.g. price_aed"),
-        label: z.string(),
-        type: z.enum(["string", "number", "currency", "date", "url"]),
-        unit: z.string().optional().describe("Currency code when type is currency, e.g. AED"),
-      }),
-    )
-    .min(2)
+    .describe("The exact URLs the USER supplied. Never put a URL here that you composed yourself."),
+});
+
+export const CollectSourcesParams = z.object({
+  question: z.string().describe("The research question, in full, as the user asked it."),
+  sourceSetId: z.string().describe("The sourceSetId returned by search_web or use_direct_urls."),
+  indexes: z
+    .array(z.number())
+    .min(1)
     .max(8)
-    .describe(
-      "The columns you want extracted from every page. You are designing the schema — " +
-        "choose fields that make the answer comparable across sources.",
-    ),
+    .describe("Which candidates to read, by their index in that source set."),
   mode: z
+    .enum(["markdown", "crawl", "images"])
+    .describe(
+      "markdown reads each page (the default choice). crawl also follows a page's links, " +
+        "for a site whose answer is spread across several pages. images collects pictures, " +
+        "only when the user asked to SEE something.",
+    ),
+  crawlPages: z
+    .number()
+    .optional()
+    .describe("crawl mode only: how many pages to visit. Defaults to 5, hard limit 12."),
+  report_mode: z
     .enum(["replace", "add"])
     .optional()
     .describe(
-      "replace (the default) clears the canvas and shows this research on its own. " +
-        "Use add when the user wants this alongside what is already there — " +
-        "'also research X', 'add that to the report', 'combine these'.",
+      "replace (the default) shows this research on its own. Use add to join it to the " +
+        "report already on screen — 'also research X', 'add that to the report'.",
     ),
+});
+
+export const SetResearchFindingsParams = z.object({
+  datasetId: z.string().describe("The datasetId that collect_sources returned."),
+  findings: z
+    .array(
+      z.object({
+        text: z.string().describe("One short factual sentence you read on the source."),
+        sourceId: z.string().describe("The id of the source you read it on. Required."),
+      }),
+    )
+    .min(1)
+    .max(6)
+    .describe("Facts you actually read via read_source. Every one needs the source it came from."),
 });
 
 export const DeepenParams = z.object({
@@ -91,13 +116,13 @@ export const ReadSourceParams = z.object({
  * to get wrong — one id and a list of five known words.
  */
 export const RenderUiParams = z.object({
-  datasetId: z.string().describe("The datasetId that research returned."),
+  datasetId: z.string().describe("The datasetId that collect_sources returned."),
   components: z
     .array(ComponentKind)
     .describe(
       "Which components to show, in order. Choose from: stat_cards, chart, " +
-        "comparison_table, findings, source_list. A good default for a comparison is " +
-        "stat_cards, chart, comparison_table, source_list.",
+        "comparison_table, findings, source_list, image_gallery. A good default for a " +
+        "comparison is stat_cards, chart, comparison_table, source_list.",
     ),
   title: z.string().optional().describe("Heading for the dashboard."),
 });
@@ -118,8 +143,18 @@ export const UpdateComponentParams = z.object({
         .optional()
         .describe("Chart type. This is how you turn a bar chart into a pie."),
       title: z.string().optional().describe("New heading for the component."),
+      subtitle: z
+        .string()
+        .optional()
+        .describe("One quiet line under the heading saying what this card shows, e.g. 'Nightly rates, October'."),
       x: z.string().optional().describe("Chart only: the field key to group by."),
       y: z.array(z.string()).optional().describe("Chart only: the numeric field keys to plot."),
+      xTitle: z.string().optional().describe("Chart only: label under the horizontal axis."),
+      yTitle: z.string().optional().describe("Chart only: label beside the vertical axis."),
+      legend: z
+        .enum(["auto", "show", "hide"])
+        .optional()
+        .describe("Chart only: auto shows a legend when there is more than one series."),
       columns: z.array(z.string()).optional().describe("Table only: which columns to show."),
     })
     .describe("What to change. Set only the keys you are changing, e.g. { kind: 'pie' }."),
@@ -146,7 +181,7 @@ export const GetUiStateParams = z.object({});
  */
 export const AddComponentParams = z.object({
   datasetId: z.string().describe("Which dataset the new component should read from."),
-  type: ComponentKind.describe("stat_cards, chart, comparison_table, findings or source_list."),
+  type: ComponentKind.describe("stat_cards, chart, comparison_table, findings, source_list or image_gallery."),
   position: z
     .number()
     .optional()
@@ -188,6 +223,10 @@ export const ExportDataParams = z.object({
     .string()
     .optional()
     .describe("A table id, to export only the rows its filters currently leave visible."),
+});
+
+export const ExportReportParams = z.object({
+  action: z.enum(["preview", "print"]).default("preview"),
 });
 
 export const HighlightRowsParams = z.object({
@@ -243,15 +282,51 @@ export const MockDataParams = z.object({
 });
 
 export const TOOLS = {
-  research: def({
-    name: "research",
+  search_web: def({
+    name: "search_web",
     kind: "client",
     description:
-      "Read the live web to answer a research question. Returns a dataset id plus a short " +
-      "summary — never the full data. A dashboard is mounted automatically when it " +
-      "finishes; pass mode 'add' to join the existing report instead of replacing it.",
-    params: ResearchParams,
-    preToolSpeech: "Let me go and read up on that.",
+      "Search the live web to FIND pages. Returns a sourceSetId plus numbered candidates " +
+      "with titles and descriptions — it does not read them. Always call this before " +
+      "collect_sources unless the user gave you exact URLs. Never invent a URL.",
+    params: SearchWebParams,
+    // Blocking: the whole point is to choose from what came back. Without the
+    // result in hand the model would be picking indexes it has never seen.
+    waitForResponse: true,
+    preToolSpeech: "Let me search for that.",
+  }),
+
+  use_direct_urls: def({
+    name: "use_direct_urls",
+    kind: "client",
+    description:
+      "Register exact URLs the USER gave you, skipping search. Returns a sourceSetId and " +
+      "numbered candidates, same as search_web. Only for URLs the user actually said.",
+    params: UseDirectUrlsParams,
+    waitForResponse: true,
+  }),
+
+  collect_sources: def({
+    name: "collect_sources",
+    kind: "client",
+    description:
+      "Read the candidates you chose and build a report from them. Takes a sourceSetId and " +
+      "candidate indexes — never URLs. Rows come only from real tables on those pages; a " +
+      "prose page contributes sources to quote instead. A dashboard mounts automatically.",
+    params: CollectSourcesParams,
+    waitForResponse: true,
+    preToolSpeech: "Reading those now.",
+  }),
+
+  set_research_findings: def({
+    name: "set_research_findings",
+    kind: "client",
+    description:
+      "Add findings you read yourself to the report. Each one needs the sourceId it came " +
+      "from, and that source must belong to the dataset. Use after read_source — never to " +
+      "write something you inferred or remembered.",
+    params: SetResearchFindingsParams,
+    waitForResponse: true,
   }),
 
   deepen: def({
@@ -364,6 +439,16 @@ export const TOOLS = {
       "spreadsheet', 'download the table'. Pass a componentId to export only the rows " +
       "currently visible after filtering.",
     params: ExportDataParams,
+    waitForResponse: true,
+  }),
+
+  export_report: def({
+    name: "export_report",
+    kind: "client",
+    description:
+      "Open a print-ready preview of the current visual report, or print it after the " +
+      "preview is open. Use this for PDF, final report, report preview, and print requests.",
+    params: ExportReportParams,
     waitForResponse: true,
   }),
 

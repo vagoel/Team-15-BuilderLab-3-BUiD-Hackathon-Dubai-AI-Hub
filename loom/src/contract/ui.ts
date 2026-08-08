@@ -47,6 +47,18 @@ export const Sort = z.object({
 const base = {
   id: z.string().describe("Stable id you will reuse to update this component later."),
   title: z.string().optional(),
+  /**
+   * One quiet line under the title. Where the title says what a card *is*, this
+   * says what it shows — "Mean of 108 rows", "Filtered to under AED 200". Charts
+   * already generate one when they aggregate; setting it here overrides that.
+   */
+  subtitle: z.string().optional(),
+  /**
+   * Explicit width out of 12, set when a template pins the placement. Left off by
+   * adaptive layouts, which keep using the per-type spans in `Canvas`, so every
+   * spec written before templates existed still renders exactly as it did.
+   */
+  columnSpan: z.number().int().min(1).max(12).optional(),
 };
 
 export const StatCardsSpec = z.object({
@@ -90,6 +102,23 @@ export const ChartSpec = z.object({
     .min(1)
     .describe("Numeric field keys to plot. A pie uses only the first, summed per category."),
   filters: z.array(Filter).default([]),
+  /**
+   * Axis titles. Both default to the field's own label at render time, so a chart
+   * that says nothing about its axes is still readable — these exist for when the
+   * field label is not the right words ("price" on an axis of AED per night).
+   */
+  xTitle: z.string().optional(),
+  yTitle: z.string().optional(),
+  /**
+   * Omitted (or "auto") shows a legend when there is more than one series, and
+   * always for a pie — a single-series bar chart is already explained by its y-axis
+   * title, and a one-entry legend is furniture.
+   *
+   * Optional rather than `.default("auto")` deliberately: a zod default makes the
+   * field *required* on the parsed output type, which would force every existing
+   * chart-construction site to name it.
+   */
+  legend: z.enum(["auto", "show", "hide"]).optional(),
 });
 
 export const SourceListSpec = z.object({
@@ -108,12 +137,25 @@ export const FindingsSpec = z.object({
     .describe("Omit to use the dataset's own findings."),
 });
 
+/**
+ * Images scraped from the sources. Reads `dataset.images`, which carry their own
+ * `sourceId` — an image with no attributable source is not shown, because the one
+ * thing worse than no picture is a picture nobody can trace.
+ */
+export const ImageGallerySpec = z.object({
+  ...base,
+  type: z.literal("image_gallery"),
+  datasetId: z.string(),
+  max: z.number().int().min(1).max(48).optional(),
+});
+
 export const UiComponentSpec = z.discriminatedUnion("type", [
   StatCardsSpec,
   ComparisonTableSpec,
   ChartSpec,
   SourceListSpec,
   FindingsSpec,
+  ImageGallerySpec,
 ]);
 export type UiComponentSpec = z.infer<typeof UiComponentSpec>;
 
@@ -132,6 +174,7 @@ export const UiState = z.object({
       id: z.string(),
       type: z.string(),
       title: z.string().optional(),
+      subtitle: z.string().optional(),
       datasetId: z.string().optional(),
       visibleRows: z.number().optional(),
       filters: z.array(Filter).optional(),
@@ -146,6 +189,7 @@ export const COMPONENT_TYPES = [
   "chart",
   "source_list",
   "findings",
+  "image_gallery",
 ] as const;
 
 export const ComponentKind = z.enum(COMPONENT_TYPES);

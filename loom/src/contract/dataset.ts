@@ -46,6 +46,14 @@ export type Finding = z.infer<typeof Finding>;
 export const DataRecord = z.record(z.string(), z.union([z.string(), z.number(), z.null()]));
 export type DataRecord = z.infer<typeof DataRecord>;
 
+/** One scraped image, always carrying the source it was found on. */
+export const DatasetImage = z.object({
+  src: z.string(),
+  alt: z.string().optional(),
+  sourceId: z.string(),
+});
+export type DatasetImage = z.infer<typeof DatasetImage>;
+
 export const Dataset = z.object({
   id: z.string(),
   question: z.string(),
@@ -55,6 +63,11 @@ export const Dataset = z.object({
   fields: z.array(FieldSpec),
   records: z.array(DataRecord),
   findings: z.array(Finding),
+  /**
+   * Populated only when the agent asked for image retrieval. Optional so every
+   * dataset built before image support still parses.
+   */
+  images: z.array(DatasetImage).optional(),
 });
 export type Dataset = z.infer<typeof Dataset>;
 

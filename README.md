@@ -2,7 +2,7 @@
 
 **Voice-driven web research that builds an interactive dashboard while you talk.**
 
-Ask Loom a research question by voice or text. Its ElevenLabs conversational agent chooses the sources and the fields to extract, context.dev reads those live pages into structured rows, and the React app turns the result into stat cards, a chart, a filterable table, findings, and a source list. Follow-up commands such as “hide anything over AED 2 million,” “sort by price,” or “export this” operate on the dashboard already on screen.
+Ask Loom a research question by voice or text. Its ElevenLabs conversational agent chooses the sources and the fields to extract, context.dev reads those live pages into structured rows, and the React app turns the result into stat cards, a chart, a filterable table, findings, and a source list. Follow-up commands such as “hide anything over AED 2 million,” “sort by price,” or “export this report as PDF” operate on the dashboard already on screen.
 
 The bulk dataset stays in the browser rather than passing through the language model. The agent receives a compact summary and dataset ID, while the canvas reads the rows directly from the Zustand store.
 
@@ -12,7 +12,7 @@ The bulk dataset stays in the browser rather than passing through the language m
 - Extracts an agent-defined schema from one or more live URLs with context.dev.
 - Fetches sources in parallel and updates source/progress state as each request completes.
 - Automatically lays out five guarded component types: stat cards, charts, comparison tables, findings, and sources.
-- Lets the agent filter, sort, highlight, focus, move, add, remove, clear, undo, and export dashboard data through typed client tools.
+- Lets the agent filter, sort, highlight, focus, move, add, remove, clear, undo, export CSV data, and open a print-ready PDF report through typed client tools.
 - Includes local mock datasets and a developer rail so the UI can be demonstrated without API credits.
 
 ## Prerequisites
@@ -77,6 +77,8 @@ pnpm dev
 
 Open <http://localhost:5173>, press **Start**, allow microphone access, and ask a research question. The agent supplies the URLs it wants Loom to read, so live research requires internet access and usable vendor quota.
 
+Use **Preview PDF** on a populated canvas, or say “export this report as PDF,” to open the print-ready report. The preview includes every table row remaining after voice and column filters, preserves sorting and highlights, and supports **Print / Save PDF** through the browser print destination. PDF files are generated entirely in the browser and are not stored by Loom; large filtered tables can produce long documents. Ask for “CSV” or “spreadsheet” when you want raw table data instead.
+
 Useful local modes:
 
 - <http://localhost:5173/?demo> opens a populated mock dashboard without a research request.
@@ -109,6 +111,7 @@ ElevenLabs owns speech, turn-taking, and tool selection. Browser-side handlers v
 | `loom/src/voice/` | ElevenLabs session lifecycle, prompt/config generation, and tool handlers |
 | `loom/src/research/` | context.dev client, cache, extraction pipeline, and fallbacks |
 | `loom/src/canvas/` | Automatic layout and the five dashboard component types |
+| `loom/src/report/` | Pure report preparation and the browser print/PDF preview |
 | `loom/src/store.ts` | Zustand state shared by voice tools and the visible UI |
 | `loom/mock/` | Local mock API and prepared/generated datasets |
 | `loom/scripts/` | ElevenLabs sync and live preflight checks |

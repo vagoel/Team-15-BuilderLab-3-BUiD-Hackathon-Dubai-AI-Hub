@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DataRecord } from "../contract/index.js";
-import { applyFilters, formatValue } from "./filter.js";
+import { applyFilters, columnFiltersToFilters, formatValue, selectRows } from "./filter.js";
 
 const rows: DataRecord[] = [
   { product: "Drift", region: "EMEA", revenue: 28282, units: 155 },
@@ -57,6 +57,35 @@ describe("applyFilters", () => {
 
   it("returns everything when there is nothing to filter by", () => {
     expect(applyFilters(rows, [])).toHaveLength(5);
+  });
+});
+
+describe("shared table row semantics", () => {
+  const fields = [
+    { key: "product", label: "Product", type: "string" as const },
+    { key: "revenue", label: "Revenue", type: "number" as const },
+  ];
+
+  it("converts text and numeric table filters into canonical filters", () => {
+    expect(columnFiltersToFilters([
+      { id: "product", value: " dri " },
+      { id: "revenue", value: { min: 20_000, max: 50_000 } },
+    ], fields)).toEqual([
+      { field: "product", op: "contains", value: "dri" },
+      { field: "revenue", op: "gte", value: 20_000 },
+      { field: "revenue", op: "lte", value: 50_000 },
+    ]);
+  });
+
+  it("combines filters and sorts numerically with missing values last", () => {
+    const selected = selectRows(rows, [{ field: "region", op: "neq", value: "LATAM" }], { field: "revenue", dir: "desc" }, fields);
+    expect(selected.map((row) => row.revenue)).toEqual([131228, 125958, 28282, 20648]);
+    expect(selectRows(rows, [], { field: "revenue", dir: "asc" }, fields).at(-1)?.revenue).toBeNull();
+  });
+
+  it("keeps equal values in their original order", () => {
+    const tied = [{ product: "B", revenue: 10 }, { product: "A", revenue: 10 }];
+    expect(selectRows(tied, [], { field: "revenue", dir: "asc" }, fields).map((row) => row.product)).toEqual(["B", "A"]);
   });
 });
 

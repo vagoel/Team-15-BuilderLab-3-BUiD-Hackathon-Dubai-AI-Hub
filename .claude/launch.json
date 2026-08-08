@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "loom",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "loom", "dev", "--port", "5174", "--strictPort"],
+      "port": 5174
+    }
+  ]
+}

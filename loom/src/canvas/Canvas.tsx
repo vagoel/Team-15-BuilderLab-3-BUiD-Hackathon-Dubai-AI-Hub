@@ -58,8 +58,17 @@ export function Canvas() {
     <main className="canvas">
       <div className="canvas-head">
         <div className="canvas-title">{spec.title ?? "Results"}</div>
-        <div className="canvas-sub">
-          {sourceCount} source{sourceCount === 1 ? "" : "s"} · {rowCount} row{rowCount === 1 ? "" : "s"}
+        <div className="canvas-head-actions">
+          <div className="canvas-sub">
+            {sourceCount} source{sourceCount === 1 ? "" : "s"} · {rowCount} row{rowCount === 1 ? "" : "s"}
+          </div>
+          <button
+            className="canvas-report-button"
+            onClick={() => useLoom.getState().openReportPreview()}
+            disabled={status === "researching"}
+          >
+            Preview PDF
+          </button>
         </div>
       </div>
       {spec.layout === "grid" ? (
@@ -119,6 +128,9 @@ function ComponentCard({
       data-component-id={c.id}
     >
       {c.title && <div className="card-title">{c.title}</div>}
+      {/* Charts render their own subtitle inside the plot area, where it sits with
+          the legend; every other component gets it here under the heading. */}
+      {c.subtitle && c.type !== "chart" && <div className="card-subtitle">{c.subtitle}</div>}
       {datasetMissing ? (
         <p style={{ color: "var(--dim)", fontSize: 13 }}>Couldn&apos;t render {c.type}</p>
       ) : (
@@ -144,6 +156,7 @@ function requiresDataset(c: UiComponentSpec): boolean {
     case "comparison_table":
     case "chart":
     case "source_list":
+    case "image_gallery":
       return true;
     case "findings":
       return !c.items;
@@ -157,8 +170,13 @@ function requiresDataset(c: UiComponentSpec): boolean {
  * side by side on one row (5 + 7 — the table is the denser artifact, it gets more
  * room) instead of the table wrapping onto its own row with a dead gap behind the
  * chart. Findings + source list do the same at 8 + 4.
+ *
+ * An explicit `columnSpan` — which only a template ever sets — wins outright. Specs
+ * written before templates existed carry none, so they keep exactly the layout they
+ * have always had.
  */
 function gridSpan(c: UiComponentSpec, hasChart: boolean): string {
+  if (c.columnSpan) return `span-${c.columnSpan}`;
   switch (c.type) {
     case "stat_cards":
       return "span-12";
@@ -170,6 +188,8 @@ function gridSpan(c: UiComponentSpec, hasChart: boolean): string {
       return "span-4";
     case "findings":
       return "span-8";
+    case "image_gallery":
+      return "span-12";
   }
 }
 
@@ -182,6 +202,7 @@ function cardWeightClass(type: UiComponentSpec["type"]): string {
     case "source_list":
     case "findings":
       return "card-quiet";
+    case "image_gallery":
     case "stat_cards":
       return "";
   }
