@@ -217,6 +217,37 @@ export const ScrollPageParams = z.object({
 export const UndoParams = z.object({});
 export const ClearCanvasParams = z.object({});
 
+export const SetLayoutParams = z.object({
+  layout: z
+    .enum(["masonry", "grid", "focus"])
+    .describe(
+      "grid is a structured 12-column dashboard — the default. masonry packs the " +
+        "cards into columns by height, Pinterest-style. focus makes the main " +
+        "artifact (the chart, or else the table) large with everything else in a " +
+        "side rail — best when one component is the answer.",
+    ),
+});
+
+/**
+ * Flat named presets rather than free pixels — an enum is a shape ElevenLabs can
+ * express and the model cannot get wrong, and the app maps each word to concrete
+ * spans and heights so voice-set sizes land exactly where the drag handle would.
+ */
+export const ResizeComponentParams = z.object({
+  id: z.string().describe("Component id, e.g. auto_chart or auto_table."),
+  width: z
+    .enum(["small", "medium", "large", "full"])
+    .optional()
+    .describe(
+      "How wide the card should be: small is a third of the row, medium is half, " +
+        "large is two thirds, full is the whole row.",
+    ),
+  height: z
+    .enum(["short", "medium", "tall"])
+    .optional()
+    .describe("How tall the card should be. The content inside grows to fill it."),
+});
+
 export const ExportDataParams = z.object({
   datasetId: z.string().describe("Which dataset to download."),
   componentId: z
@@ -503,6 +534,31 @@ export const TOOLS = {
       "showing invented data as if it were real.",
     params: MockDataParams,
     preToolSpeech: "Loading a sample table.",
+    waitForResponse: true,
+  }),
+
+  set_layout: def({
+    name: "set_layout",
+    kind: "client",
+    description:
+      "Switch the dashboard between its layout presets — 'switch to masonry', 'focus " +
+      "on the chart', 'give me the grid view'. masonry packs cards by height, focus " +
+      "spotlights the main chart or table with the rest in a rail, grid is the " +
+      "structured 12-column view. The same switcher is clickable at the top of the " +
+      "canvas, so voice and clicks share one state.",
+    params: SetLayoutParams,
+    waitForResponse: true,
+  }),
+
+  resize_component: def({
+    name: "resize_component",
+    kind: "client",
+    description:
+      "Resize one card — 'make the chart bigger', 'make the table taller', 'shrink " +
+      "the sources'. Width presets are small (a third), medium (half), large (two " +
+      "thirds) and full (the whole row); heights are short, medium and tall. The " +
+      "content inside adapts to the new size.",
+    params: ResizeComponentParams,
     waitForResponse: true,
   }),
 

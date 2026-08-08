@@ -127,6 +127,41 @@ describe("UiSpec", () => {
   });
 });
 
+describe("layout and sizing", () => {
+  const table = {
+    id: "t",
+    type: "comparison_table" as const,
+    datasetId: "ds_1",
+    columns: ["a"],
+  };
+
+  it("defaults a spec with no layout to the structured grid", () => {
+    expect(UiSpec.parse({ components: [table] }).layout).toBe("grid");
+  });
+
+  it("accepts every switchable preset and rejects an invented one", () => {
+    for (const layout of ["stack", "grid", "masonry", "focus"]) {
+      expect(UiSpec.safeParse({ layout, components: [table] }).success).toBe(true);
+    }
+    expect(UiSpec.safeParse({ layout: "carousel", components: [table] }).success).toBe(false);
+  });
+
+  it("carries a per-component size and rejects spans off the 12-column grid", () => {
+    const sized = { ...table, size: { span: 7, height: 400 } };
+    const parsed = UiSpec.parse({ components: [sized] });
+    expect(parsed.components[0]?.size).toEqual({ span: 7, height: 400 });
+
+    expect(UiSpec.safeParse({ components: [{ ...table, size: { span: 13 } }] }).success).toBe(false);
+    expect(UiSpec.safeParse({ components: [{ ...table, size: { height: 40 } }] }).success).toBe(false);
+  });
+
+  it("still parses a pre-resize spec with no size anywhere", () => {
+    // Undo history and any serialized spec from before this feature must keep loading.
+    const parsed = UiSpec.parse({ layout: "grid", components: [table] });
+    expect(parsed.components[0]?.size).toBeUndefined();
+  });
+});
+
 describe("render_ui parameters", () => {
   it("stays flat enough that the model cannot get it wrong", () => {
     // It used to take a whole UiSpec. ElevenLabs cannot express the component union,

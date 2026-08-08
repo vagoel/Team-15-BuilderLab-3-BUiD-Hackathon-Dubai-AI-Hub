@@ -1,5 +1,13 @@
 import { create } from "zustand";
-import type { Dataset, Filter, UiComponentSpec, UiSpec, UiState } from "./contract/index.js";
+import type {
+  ComponentSize,
+  Dataset,
+  Filter,
+  LayoutKind,
+  UiComponentSpec,
+  UiSpec,
+  UiState,
+} from "./contract/index.js";
 import { applyFilters } from "./lib/filter.js";
 
 /**
@@ -73,6 +81,9 @@ interface LoomState {
   openReportPreview: () => boolean;
   closeReportPreview: () => void;
   requestReportPrint: () => boolean;
+  setLayout: (layout: LayoutKind) => boolean;
+  resizeComponent: (id: string, size: ComponentSize) => boolean;
+  reorderComponents: (ids: string[]) => boolean;
   focusComponent: (id: string) => boolean;
   getUiState: () => UiState;
 
@@ -223,6 +234,16 @@ export const useLoom = create<LoomState>((set, get) => ({
     return true;
   },
 
+  setLayout: (layout) => {
+    const spec = get().spec;
+    if (!spec || spec.layout === layout) return spec?.layout === layout;
+    set((s) => ({
+      spec: { ...spec, layout },
+      history: [...s.history, spec].slice(-HISTORY_LIMIT),
+    }));
+    return true;
+  },
+
   closeReportPreview: () =>
     set((state) => ({ reportPreview: { ...state.reportPreview, open: false, openedAt: null } })),
 
@@ -230,6 +251,45 @@ export const useLoom = create<LoomState>((set, get) => ({
     if (!get().reportPreview.open) return false;
     set((state) => ({
       reportPreview: { ...state.reportPreview, printRequestId: state.reportPreview.printRequestId + 1 },
+    }));
+    return true;
+  },
+
+  resizeComponent: (id, size) => {
+    const spec = get().spec;
+    if (!spec) return false;
+    let hit = false;
+    const components = spec.components.map((c) => {
+      if (c.id !== id) return c;
+      hit = true;
+      // Merge so a width-only voice command doesn't wipe a height the user dragged.
+      return { ...c, size: { ...c.size, ...size } };
+    });
+    if (hit) {
+      set((s) => ({
+        spec: { ...spec, components },
+        history: [...s.history, spec].slice(-HISTORY_LIMIT),
+      }));
+    }
+    return hit;
+  },
+
+  /**
+   * Reorder to match `ids` (a drag-to-move gesture, sorted by where the cards
+   * landed). Components missing from `ids` keep their spot at the end; a no-op
+   * order writes no history entry, so an aborted drag costs nothing to undo.
+   */
+  reorderComponents: (ids) => {
+    const spec = get().spec;
+    if (!spec) return false;
+    const rank = new Map(ids.map((id, i) => [id, i]));
+    const components = [...spec.components].sort(
+      (a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+    );
+    if (components.every((c, i) => c.id === spec.components[i]?.id)) return true;
+    set((s) => ({
+      spec: { ...spec, components },
+      history: [...s.history, spec].slice(-HISTORY_LIMIT),
     }));
     return true;
   },
@@ -250,6 +310,7 @@ export const useLoom = create<LoomState>((set, get) => ({
     if (!spec) return { components: [] };
     return {
       title: spec.title,
+      layout: spec.layout,
       components: spec.components.map((c) => {
         const datasetId = "datasetId" in c ? c.datasetId : undefined;
         const filters = "filters" in c ? c.filters : undefined;
@@ -272,6 +333,7 @@ export const useLoom = create<LoomState>((set, get) => ({
                   ...(manual?.datasetId === datasetId ? manual.filters : []),
                 ]).length
               : undefined,
+          size: c.size,
         };
       }),
     };

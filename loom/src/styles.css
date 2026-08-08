@@ -294,8 +294,7 @@ button {
   min-height: 0;
   overflow-y: auto;
   padding: var(--space-8) var(--space-8) var(--space-16);
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .canvas-head {
@@ -346,30 +345,71 @@ button {
   color: var(--dim);
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: var(--space-4);
-  align-items: start;
-}
-
 .stack {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
 }
 
+/* ---------- layout presets ---------- */
+
+.layout-switch {
+  display: flex;
+  gap: 4px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px;
+  flex: none;
+}
+
+.layout-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: var(--mute);
+}
+
+.layout-pill.active {
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* react-grid-layout host. The library positions items absolutely inside this. */
+.dash {
+  min-width: 0;
+}
+
+.dash-cell {
+  min-width: 0;
+}
+
+/* Ghost shown while dragging/resizing, in our accent rather than RGL's red. */
+.react-grid-item.react-grid-placeholder {
+  background: var(--accent-soft);
+  border: 1px dashed var(--accent);
+  border-radius: var(--r);
+  opacity: 1;
+}
+
+/* Recolour RGL's little corner chevron to match the theme. */
+.react-grid-item > .react-resizable-handle::after {
+  border-color: var(--dim);
+}
+
+/* On <body> while a card is being dragged or resized: the pointer sweeps across
+   the page mid-gesture and would otherwise select every card's text as it goes. */
+.no-select,
+.no-select * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
 @media (max-width: 1100px) {
   .canvas {
     padding: var(--space-6) var(--space-5) var(--space-12);
-  }
-
-  .grid {
-    grid-template-columns: 1fr;
-  }
-
-  .grid > .card {
-    grid-column: 1 / -1;
   }
 }
 
@@ -392,6 +432,9 @@ button {
 /* ---------- cards ---------- */
 
 .card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--r);
@@ -399,6 +442,66 @@ button {
   min-width: 0;
   transition: border-color var(--dur), box-shadow var(--dur), transform var(--dur);
   animation: rise var(--dur-slow) var(--ease-out) both;
+}
+
+/* Inside the grid the cell owns the size; the card fills it and its content flexes. */
+.card-fill {
+  height: 100%;
+  overflow: hidden;
+}
+
+.card-fill .chart-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.card-fill .chart-box {
+  flex: 1;
+  min-height: 0;
+}
+
+/* In a sized card the plot flexes to whatever is left under the caption/legend;
+   the ResizeObserver in Chart.tsx re-renders the SVG at the measured size. */
+.card-fill .chart-plot {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.card-fill .table-root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-fill .table-scroll {
+  max-height: none !important;
+  flex: 1;
+  min-height: 0;
+}
+
+.drag-grip {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--dim);
+  cursor: grab;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 3;
+}
+
+.card:hover .drag-grip {
+  opacity: 0.8;
+}
+
+.drag-grip:active {
+  cursor: grabbing;
 }
 
 .card.focused {
@@ -446,29 +549,24 @@ button {
   margin-bottom: var(--space-2);
 }
 
-/* The adaptive layout only ever uses 4/5/7/8/12, but a template can pin any width,
-   so every column count has a class. */
-.span-12 { grid-column: span 12; }
-.span-11 { grid-column: span 11; }
-.span-10 { grid-column: span 10; }
-.span-9 { grid-column: span 9; }
-.span-8 { grid-column: span 8; }
-.span-7 { grid-column: span 7; }
-.span-6 { grid-column: span 6; }
-.span-5 { grid-column: span 5; }
-.span-4 { grid-column: span 4; }
-.span-3 { grid-column: span 3; }
-.span-2 { grid-column: span 2; }
-.span-1 { grid-column: span 1; }
-
 /* Caps the chart's plot area so four bars don't render at 500px tall — the SVG keeps
    its own aspect ratio (preserveAspectRatio defaults to "meet"), it just stops growing. */
 .chart-shell {
   overflow: hidden;
 }
 
-.chart-shell svg {
-  max-height: 288px;
+.chart-box {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Fixed plot height for auto-sized cards (the stack layout); a card with an
+   explicit size overrides this with flex above. */
+.chart-plot {
+  height: 280px;
+  min-height: 0;
 }
 
 /* Stat numbers are typeset data: mono, tabular, distributed across the full width. */

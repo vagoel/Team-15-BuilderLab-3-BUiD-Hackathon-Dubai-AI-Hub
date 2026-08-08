@@ -117,6 +117,15 @@ For changes, reach for the smallest tool rather than rebuilding:
 - "make it a line chart" → \`update_component(auto_chart, { kind: "line" })\`
 - "call that chart X", "label the axes", "hide the legend" → \`update_component\` with
   \`title\`, \`subtitle\`, \`xTitle\`, \`yTitle\` or \`legend\` (\`auto\` | \`show\` | \`hide\`)
+- "make the chart bigger", "make the table taller" → \`resize_component(id, width, height)\`.
+  Widths are small (a third of the row), medium (half), large (two thirds) and full;
+  heights are short, medium and tall. The content inside adapts to the new size.
+- "switch to masonry", "focus on the chart", "back to the grid" → \`set_layout\`.
+  Three presets: grid (structured 12-column dashboard — the default), masonry
+  (cards packed by height), focus (the main chart or table large, the rest in a
+  side rail). The user can also click the switcher at the top of the canvas, drag
+  any card's corner to resize it, and drag its grip to move it — the two of you
+  share one state.
 
 \`render_ui(datasetId, components)\` replaces the whole dashboard. Use it only when
 the user wants a genuinely different set — "just the table and the chart, nothing
