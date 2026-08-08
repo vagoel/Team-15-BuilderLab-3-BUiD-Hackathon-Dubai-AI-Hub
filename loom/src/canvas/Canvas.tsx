@@ -1,7 +1,9 @@
 import { Component, useEffect, useRef } from "react";
 import type { ErrorInfo, ReactNode } from "react";
+import { GridLayout, useContainerWidth } from "react-grid-layout";
+import type { Layout, LayoutItem } from "react-grid-layout";
 import type { Dataset } from "../contract/dataset.js";
-import type { UiComponentSpec, UiSpec } from "../contract/ui.js";
+import type { LayoutKind, UiComponentSpec, UiSpec } from "../contract/ui.js";
 import { renderComponent } from "./registry.js";
 import { useLoom } from "../store.js";
 
@@ -11,6 +13,13 @@ const EXAMPLE_PROMPTS = [
   "Summarise these three pricing pages",
 ];
 
+/** The presets the user can switch between; `stack` is internal (tiny dashboards). */
+const LAYOUT_PRESETS: Array<{ kind: LayoutKind; label: string }> = [
+  { kind: "grid", label: "Grid" },
+  { kind: "masonry", label: "Masonry" },
+  { kind: "focus", label: "Focus" },
+];
+
 export function Canvas() {
   const spec = useLoom((s) => s.spec);
   const datasets = useLoom((s) => s.datasets);
@@ -18,6 +27,7 @@ export function Canvas() {
   const status = useLoom((s) => s.status);
   const progress = useLoom((s) => s.progress);
   const canUndo = useLoom((s) => s.history.length > 0);
+  const setLayout = useLoom((s) => s.setLayout);
 
   if (!spec) {
     return (
@@ -59,7 +69,6 @@ export function Canvas() {
   }
 
   const { sourceCount, rowCount } = summarize(spec, datasets);
-  const hasChart = spec.components.some((c) => c.type === "chart");
 
   return (
     <main className="canvas">
@@ -110,20 +119,21 @@ export function Canvas() {
             Preview PDF
           </button>
         </div>
-      </div>
-      {spec.layout === "grid" ? (
-        <div className="grid">
-          {spec.components.map((c) => (
-            <ComponentCard
-              key={c.id}
-              c={c}
-              dataset={datasetFor(c, datasets)}
-              focused={focusedId === c.id}
-              spanClass={[gridSpan(c, hasChart), cardWeightClass(c.type)].filter(Boolean).join(" ")}
-            />
+        <div className="layout-switch" role="tablist" aria-label="Layout">
+          {LAYOUT_PRESETS.map((p) => (
+            <button
+              key={p.kind}
+              role="tab"
+              aria-selected={spec.layout === p.kind}
+              className={"layout-pill" + (spec.layout === p.kind ? " active" : "")}
+              onClick={() => setLayout(p.kind)}
+            >
+              {p.label}
+            </button>
           ))}
         </div>
-      ) : (
+      </div>
+      {spec.layout === "stack" ? (
         <div className="stack">
           {spec.components.map((c) => (
             <ComponentCard
@@ -131,12 +141,185 @@ export function Canvas() {
               c={c}
               dataset={datasetFor(c, datasets)}
               focused={focusedId === c.id}
-              spanClass={cardWeightClass(c.type) || undefined}
+              weightClass={cardWeightClass(c.type) || undefined}
             />
           ))}
         </div>
+      ) : (
+        <DashboardGrid spec={spec} datasets={datasets} focusedId={focusedId} />
       )}
     </main>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// react-grid-layout dashboard
+// ---------------------------------------------------------------------------
+
+/**
+ * Grid geometry. A small row unit means heights land close to what the user
+ * dragged; with rowHeight 8 and a 16px margin one grid row costs 24 rendered px
+ * (h rows = 8h + 16(h-1) px), so `pxToRows`/`rowsToPx` below are exact inverses.
+ */
+const COLS = 12;
+const ROW_HEIGHT = 8;
+const MARGIN = 16;
+
+function pxToRows(px: number): number {
+  return Math.max(3, Math.round((px + MARGIN) / (ROW_HEIGHT + MARGIN)));
+}
+
+function rowsToPx(rows: number): number {
+  return rows * ROW_HEIGHT + (rows - 1) * MARGIN;
+}
+
+/** Opening heights, in px, for a card whose spec carries no explicit height yet. */
+const DEFAULT_HEIGHT_PX: Record<UiComponentSpec["type"], number> = {
+  stat_cards: 140,
+  chart: 340,
+  comparison_table: 500,
+  findings: 260,
+  source_list: 260,
+  // Tiles are 88pt tall in three columns, so a gallery needs roughly a table's room.
+  image_gallery: 420,
+};
+
+/**
+ * Default 12-col span per type in the structured grid preset (chart 5 + table 7 = one row).
+ *
+ * An explicit `columnSpan` — which only a template ever sets — wins outright, so a
+ * pinned template still lays out the way it was saved. A size the user dragged beats
+ * both; that is handled by the caller, which reaches for `c.size?.span` first.
+ */
+function gridDefaultSpan(c: UiComponentSpec, hasChart: boolean): number {
+  if (c.columnSpan) return c.columnSpan;
+  switch (c.type) {
+    case "stat_cards":
+      return 12;
+    case "chart":
+      return 5;
+    case "comparison_table":
+      return hasChart ? 7 : 12;
+    case "source_list":
+      return 4;
+    case "findings":
+      return 8;
+    case "image_gallery":
+      return 12;
+  }
+}
+
+/**
+ * Seed a react-grid-layout `Layout` from the spec and the active preset. Explicit
+ * sizes (dragged or voice-set) always win; the preset only decides the defaults and
+ * the flow. The vertical compactor then packs whatever this returns, which is what
+ * makes `masonry` read as a masonry wall without a masonry engine.
+ */
+function seedLayout(spec: UiSpec): Layout {
+  const hasChart = spec.components.some((c) => c.type === "chart");
+  const items: LayoutItem[] = [];
+  let x = 0;
+  let y = 0;
+
+  const place = (c: UiComponentSpec, w: number, forcedX?: number) => {
+    const h = pxToRows(c.size?.height ?? DEFAULT_HEIGHT_PX[c.type]);
+    if (forcedX === undefined && x + w > COLS) {
+      x = 0;
+      y += 1;
+    }
+    items.push({ i: c.id, x: forcedX ?? x, y: y + items.length, w, h, minW: 2, minH: 3 });
+    if (forcedX === undefined) x += w;
+  };
+
+  if (spec.layout === "focus") {
+    const primary =
+      spec.components.find((c) => c.type === "chart") ??
+      spec.components.find((c) => c.type === "comparison_table") ??
+      spec.components[0]!;
+    for (const c of spec.components) {
+      if (c.id === primary.id) {
+        const h = pxToRows(c.size?.height ?? 560);
+        items.push({ i: c.id, x: 0, y: 0, w: c.size?.span ?? 8, h, minW: 2, minH: 3 });
+      } else {
+        place(c, Math.min(c.size?.span ?? 4, 4), 8);
+      }
+    }
+    return items;
+  }
+
+  if (spec.layout === "masonry") {
+    for (const c of spec.components) place(c, c.size?.span ?? 4);
+    return items;
+  }
+
+  // grid (structured)
+  for (const c of spec.components) place(c, c.size?.span ?? gridDefaultSpan(c, hasChart));
+  return items;
+}
+
+function DashboardGrid({
+  spec,
+  datasets,
+  focusedId,
+}: {
+  spec: UiSpec;
+  datasets: Record<string, Dataset>;
+  focusedId: string | null;
+}) {
+  const { width, mounted, containerRef } = useContainerWidth();
+  const layout = seedLayout(spec);
+
+  /**
+   * The pointer leaves the card mid-gesture, and the browser reads that as a text
+   * selection sweep across the whole page. Kill selection globally for the duration.
+   */
+  const suppressSelection = () => document.body.classList.add("no-select");
+  const restoreSelection = () => document.body.classList.remove("no-select");
+
+  /** One drag/resize gesture = one history entry, committed on release only. */
+  const onResizeStop = (_layout: Layout, _old: LayoutItem | null, item: LayoutItem | null) => {
+    restoreSelection();
+    if (!item) return;
+    useLoom.getState().resizeComponent(item.i, {
+      span: item.w,
+      height: rowsToPx(item.h),
+    });
+  };
+
+  const onDragStop = (finalLayout: Layout) => {
+    restoreSelection();
+    const ordered = [...finalLayout].sort((a, b) => a.y - b.y || a.x - b.x).map((l) => l.i);
+    useLoom.getState().reorderComponents(ordered);
+  };
+
+  return (
+    <div ref={containerRef} className="dash">
+      {mounted && (
+        <GridLayout
+          width={width}
+          layout={layout}
+          gridConfig={{ cols: COLS, rowHeight: ROW_HEIGHT, margin: [MARGIN, MARGIN], containerPadding: [0, 0] }}
+          dragConfig={{ enabled: true, handle: ".drag-grip" }}
+          resizeConfig={{ enabled: true, handles: ["se"] }}
+          onResizeStart={suppressSelection}
+          onDragStart={suppressSelection}
+          onResizeStop={onResizeStop}
+          onDragStop={onDragStop}
+        >
+          {spec.components.map((c) => (
+            <div key={c.id} className="dash-cell">
+              <ComponentCard
+                c={c}
+                dataset={datasetFor(c, datasets)}
+                focused={focusedId === c.id}
+                weightClass={cardWeightClass(c.type) || undefined}
+                fill
+              />
+            </div>
+          ))}
+        </GridLayout>
+      )}
+    </div>
   );
 }
 
@@ -144,12 +327,15 @@ function ComponentCard({
   c,
   dataset,
   focused,
-  spanClass,
+  weightClass,
+  fill = false,
 }: {
   c: UiComponentSpec;
   dataset: Dataset | undefined;
   focused: boolean;
-  spanClass?: string;
+  weightClass?: string;
+  /** Inside the grid the cell owns the size; the card fills it and flexes its content. */
+  fill?: boolean;
 }) {
   const ref = useRef<HTMLElement>(null);
 
@@ -164,9 +350,15 @@ function ComponentCard({
   return (
     <section
       ref={ref}
-      className={"card" + (focused ? " focused" : "") + (spanClass ? " " + spanClass : "")}
+      className={
+        "card" +
+        (focused ? " focused" : "") +
+        (fill ? " card-fill" : "") +
+        (weightClass ? " " + weightClass : "")
+      }
       data-component-id={c.id}
     >
+      {fill && <div className="drag-grip" title="Drag to move">⣿</div>}
       {c.title && <div className="card-title">{c.title}</div>}
       {/* Charts render their own subtitle inside the plot area, where it sits with
           the legend; every other component gets it here under the heading. */}
@@ -202,34 +394,6 @@ function requiresDataset(c: UiComponentSpec): boolean {
       return !c.items;
     case "stat_cards":
       return false;
-  }
-}
-
-/**
- * Column spans for the 12-col grid. Chart + table are sized to sum to 12 so they sit
- * side by side on one row (5 + 7 — the table is the denser artifact, it gets more
- * room) instead of the table wrapping onto its own row with a dead gap behind the
- * chart. Findings + source list do the same at 8 + 4.
- *
- * An explicit `columnSpan` — which only a template ever sets — wins outright. Specs
- * written before templates existed carry none, so they keep exactly the layout they
- * have always had.
- */
-function gridSpan(c: UiComponentSpec, hasChart: boolean): string {
-  if (c.columnSpan) return `span-${c.columnSpan}`;
-  switch (c.type) {
-    case "stat_cards":
-      return "span-12";
-    case "chart":
-      return "span-5";
-    case "comparison_table":
-      return hasChart ? "span-7" : "span-12";
-    case "source_list":
-      return "span-4";
-    case "findings":
-      return "span-8";
-    case "image_gallery":
-      return "span-12";
   }
 }
 

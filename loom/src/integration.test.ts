@@ -108,13 +108,6 @@ function stubContextDev(options: StubOptions = {}) {
       return jsonResponse({ success: true, markdown });
     }
 
-    if (url.includes("/api/mock/")) {
-      return new Response("plan,price_usd\nStarter,29\nTeam,99\n", {
-        status: 200,
-        headers: { "content-type": "text/csv" },
-      });
-    }
-
     throw new Error(`unstubbed fetch: ${url}`);
   });
 

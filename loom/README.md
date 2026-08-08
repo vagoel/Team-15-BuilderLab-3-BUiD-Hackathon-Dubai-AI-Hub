@@ -149,7 +149,6 @@ id, which is public by design.
 | `src/canvas/` | Spec renderer, auto-layout, template placement, and the six components |
 | `src/canvas/autoLayout.ts` | Turns a dataset into a dashboard, so the model never has to |
 | `src/report/` | Builds a pure report model and renders the print/PDF preview in the browser |
-| `mock/` | Vite dev plugin serving mock tables and the pre-researched datasets over HTTP |
 | `scripts/` | `preflight` (go/no-go) and `sync-agent` (push the contract to ElevenLabs) |
 | `src/voice/` | ElevenLabs session, tool handlers, agent config generator |
 | `src/chat/` | The conversation rail |
@@ -190,7 +189,6 @@ With no template selected the variable is `NONE` and layout stays adaptive.
 | `set_research_findings` | Add findings the agent read itself; each needs a source id from this dataset |
 | `deepen` | Extend an existing dataset in place with another angle |
 | `read_source` | Full text of one source, truncated before it reaches the model |
-| `mock_data` | Load a pre-researched or generated table without spending a credit |
 
 **Changing what is on screen**
 
@@ -266,24 +264,12 @@ spend two minutes on the mic button by hand:
 2. Click **Stop** while it is still connecting — it should stay stopped.
 3. Turn wifi off for a second mid-session, then back on — **Start** must work again.
 
-## Mock mode
+## Dev harness
 
-Extraction costs credits and takes about 22 seconds a page, which makes the canvas
-awkward to build against. `mock_data` loads a table instantly instead:
-
-- `llm_pricing`, `dubai_rent`, `gpu_cloud` — **real** figures compiled from real pages,
-  with genuine source URLs. Gaps are left null rather than filled in.
-- `sales`, `employees`, `models`, `weather`, `market_share`, `numbers` — generated
-  filler for exercising the interface at scale, seeded so the same request always
-  returns the same rows.
-
-Generated data labels itself as synthetic in the headline, the source list and the
-findings, so a mock dashboard cannot be mistaken for research in a screenshot. The
-prompt only lets the agent reach for it when the user explicitly asks for sample data —
-never to paper over thin research.
-
-`?dev` opens a harness that drives every tool by button, and `?demo` boots straight into
-a populated dashboard.
+The agent has no way to put anything on the canvas but real researched data — nothing on
+screen can be mistaken for something it isn't. To work on the rendering layer without
+starting a voice session, `?dev` opens a harness that drives every tool by button and
+seeds a fixture locally.
 
 ## Tests
 

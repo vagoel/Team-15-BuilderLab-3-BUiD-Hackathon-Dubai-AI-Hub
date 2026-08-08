@@ -1,4 +1,4 @@
-import type { ComponentKind, Dataset, UiComponentSpec, UiSpec } from "../contract/index.js";
+import type { ComponentKind, Dataset, LayoutKind, UiComponentSpec, UiSpec } from "../contract/index.js";
 
 /**
  * Build a dashboard from a dataset without asking the model for one.
@@ -203,9 +203,18 @@ export function buildLayout(
 
   return {
     title: title ?? dataset.question,
-    layout: components.length > 2 ? "grid" : "stack",
+    layout: chooseLayout(components),
     components,
   };
+}
+
+/**
+ * The structured grid is the default opening view; one or two components just
+ * stack. The user can switch presets afterwards — by voice (`set_layout`) or the
+ * switcher pills — so this only has to be a good opening move.
+ */
+export function chooseLayout(components: readonly UiComponentSpec[]): LayoutKind {
+  return components.length <= 2 ? "stack" : "grid";
 }
 
 /**

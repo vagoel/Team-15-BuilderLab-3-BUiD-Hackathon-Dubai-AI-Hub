@@ -8,6 +8,7 @@ import "@fontsource-variable/fraunces/opsz.css";
 import "@fontsource-variable/inter";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
+import "react-grid-layout/css/styles.css";
 import "./styles.css";
 
 // Before the first paint, so the app never flashes the wrong palette.

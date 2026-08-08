@@ -249,10 +249,10 @@ function ComparisonTableInner({ spec, dataset }: { spec: ComparisonTableSpec; da
   };
 
   return (
-    <div>
+    <div className="table-root">
       <div
         ref={scrollRef}
-        className="scroll"
+        className="scroll table-scroll"
         style={{ maxHeight: SCROLL_MAX_HEIGHT, overflow: "auto", position: "relative", border: "1px solid var(--line)", borderRadius: "var(--radius-md)" }}
       >
         <table

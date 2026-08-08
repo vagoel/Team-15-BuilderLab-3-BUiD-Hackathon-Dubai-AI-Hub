@@ -374,33 +374,85 @@ describe("createToolHandlers", () => {
     expect(useLoom.getState().reportPreview.open).toBe(true);
   });
 
-  it("mock_data times out instead of hanging the voice turn forever on a stalled dev server", async () => {
-    vi.useFakeTimers();
-    const originalFetch = globalThis.fetch;
-    // Simulates a dev server that accepted the connection but never responds:
-    // `fetch` never settles on its own, only when its AbortSignal fires.
-    globalThis.fetch = vi.fn((_url: string, init?: RequestInit) => {
-      return new Promise((_resolve, reject) => {
-        init?.signal?.addEventListener("abort", () => {
-          const err = new Error("The operation was aborted");
-          err.name = "AbortError";
-          reject(err);
-        });
-      });
-    }) as unknown as typeof fetch;
+  it("set_layout switches the preset and lands in get_ui_state", async () => {
+    useLoom.getState().setSpec({
+      layout: "grid",
+      components: [
+        { id: "table", type: "comparison_table", datasetId: "ds1", columns: ["price"], filters: [], highlights: [] },
+      ],
+    });
+    const handlers = createToolHandlers();
 
-    try {
-      const handlers = createToolHandlers();
-      const pending = handlers.mock_data!({ table: "sales" });
-      await vi.advanceTimersByTimeAsync(8000);
-      const result = await pending;
+    const result = await handlers.set_layout!({ layout: "masonry" });
 
-      expect(typeof result).toBe("string");
-      expect(result as string).toMatch(/^mock_data failed:/);
-      expect(result as string).toMatch(/timed out/i);
-    } finally {
-      globalThis.fetch = originalFetch;
-      vi.useRealTimers();
-    }
+    expect(result).toBe("Switched to the masonry layout.");
+    expect(useLoom.getState().spec?.layout).toBe("masonry");
+    expect(await handlers.get_ui_state!({})).toMatchObject({ layout: "masonry" });
+  });
+
+  it("set_layout says so when there is nothing on the canvas yet", async () => {
+    const handlers = createToolHandlers();
+    const result = await handlers.set_layout!({ layout: "focus" });
+    expect(result).toMatch(/Nothing on the canvas/);
+  });
+
+  it("resize_component maps the named presets onto span and height", async () => {
+    useLoom.getState().setSpec({
+      layout: "grid",
+      components: [
+        { id: "auto_chart", type: "chart", datasetId: "ds1", kind: "bar", x: "price", y: ["price"], filters: [] },
+      ],
+    });
+    const handlers = createToolHandlers();
+
+    const result = await handlers.resize_component!({ id: "auto_chart", width: "full", height: "tall" });
+
+    expect(result as string).toMatch(/^Resized auto_chart/);
+    const comp = useLoom.getState().spec?.components.find((c) => c.id === "auto_chart");
+    expect(comp?.size).toEqual({ span: 12, height: 560 });
+  });
+
+  it("resize_component merges rather than clobbering the other dimension", async () => {
+    useLoom.getState().setSpec({
+      layout: "grid",
+      components: [
+        { id: "auto_chart", type: "chart", datasetId: "ds1", kind: "bar", x: "price", y: ["price"], filters: [] },
+      ],
+    });
+    const handlers = createToolHandlers();
+    await handlers.resize_component!({ id: "auto_chart", height: "short" });
+    await handlers.resize_component!({ id: "auto_chart", width: "small" });
+
+    const comp = useLoom.getState().spec?.components.find((c) => c.id === "auto_chart");
+    // The height set first must survive the width-only follow-up.
+    expect(comp?.size).toEqual({ span: 4, height: 240 });
+  });
+
+  it("resize_component rejects a call that names no dimension, and an unknown id", async () => {
+    useLoom.getState().setSpec({
+      layout: "grid",
+      components: [
+        { id: "auto_chart", type: "chart", datasetId: "ds1", kind: "bar", x: "price", y: ["price"], filters: [] },
+      ],
+    });
+    const handlers = createToolHandlers();
+
+    expect(await handlers.resize_component!({ id: "auto_chart" })).toMatch(/resize_component failed/);
+    expect(await handlers.resize_component!({ id: "nope", width: "full" })).toMatch(/no component with id nope/);
+  });
+
+  it("undo steps back over a resize like any other spec change", async () => {
+    useLoom.getState().setSpec({
+      layout: "grid",
+      components: [
+        { id: "auto_chart", type: "chart", datasetId: "ds1", kind: "bar", x: "price", y: ["price"], filters: [] },
+      ],
+    });
+    const handlers = createToolHandlers();
+    await handlers.resize_component!({ id: "auto_chart", height: "tall" });
+    await handlers.undo!({});
+
+    const comp = useLoom.getState().spec?.components.find((c) => c.id === "auto_chart");
+    expect(comp?.size).toBeUndefined();
   });
 });

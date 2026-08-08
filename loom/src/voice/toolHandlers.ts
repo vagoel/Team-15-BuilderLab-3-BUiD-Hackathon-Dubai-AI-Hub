@@ -8,7 +8,6 @@ import {
   FocusComponentParams,
   GetUiStateParams,
   ReadSourceParams,
-  MockDataParams,
   RenderUiParams,
   AddComponentParams,
   MoveComponentParams,
@@ -21,13 +20,14 @@ import {
   ScrollPageParams,
   UndoParams,
   SetFilterParams,
+  SetLayoutParams,
+  ResizeComponentParams,
   SortTableParams,
   TOOLS,
   UpdateComponentParams,
   type ToolName,
 } from "../contract/tools.js";
 import { buildComponent, buildLayout, defaultLayout } from "../canvas/autoLayout.js";
-import { csvToTable } from "../research/csv.js";
 import { applyFilters, selectRows } from "../lib/filter.js";
 import { buildReportModel } from "../report/reportModel.js";
 import { useLoom } from "../store.js";
@@ -737,50 +737,6 @@ async function handleSortTable(raw: unknown): Promise<unknown> {
   return `Sorted by ${field}, ${dir === "asc" ? "smallest" : "largest"} first.`;
 }
 
-async function handleMockData(raw: unknown): Promise<unknown> {
-  const parsed = parseParams(MockDataParams, raw);
-  if (!parsed.ok) return errorMessage("mock_data", parsed.error);
-  const { table, rows, mode = "replace" } = parsed.data;
-
-  toolMessage(`mock_data → ${table}${rows ? ` (${rows} rows)` : ""}`);
-  const store = useLoom.getState();
-  store.setStatus("researching");
-  store.setProgress({ label: `Generating ${table}`, done: 0, total: 1 });
-
-  try {
-    const dataset = RESEARCH_TABLES.has(table)
-      ? await loadResearchDataset(table)
-      : await loadGeneratedTable(table, rows);
-    const datasetId = dataset.id;
-
-    store.addDataset(dataset);
-    const { spec } = mountDataset(dataset, mode === "add");
-    store.setProgress(null);
-    store.setStatus("ready");
-    toolMessage(`${mode === "add" ? "added to report" : "auto-rendered"} → ${spec.components.map((c) => c.type).join(", ")}`);
-
-    return {
-      datasetId,
-      question: dataset.question,
-      rowCount: dataset.records.length,
-      sourceCount: dataset.sources.length,
-      columns: dataset.fields.map((f) => `${f.key} (${f.type})`),
-      keyFindings: dataset.findings.slice(0, 3).map((f) => f.text),
-      rendered: spec.components.map((c) => c.type),
-      mode,
-      note: RESEARCH_TABLES.has(table)
-        ? "A researched dashboard is on screen already. Do NOT call render_ui. Say one " +
-          "short sentence about what it shows."
-        : "Sample data is on screen already. Do NOT call render_ui. Say one short " +
-          "sentence, and make clear this is sample data rather than research.",
-    };
-  } catch (err) {
-    store.setProgress(null);
-    store.setStatus(store.spec ? "ready" : "idle");
-    return errorMessage("mock_data", describeErr(err));
-  }
-}
-
 /**
  * Put a dataset on the canvas, either on its own or alongside what is already there.
  *
@@ -825,103 +781,6 @@ function mountDataset(dataset: Dataset, append: boolean): { spec: ReturnType<typ
   };
   store.setSpec(merged);
   return { spec: merged, omitted: [] };
-}
-
-/**
- * The three pre-researched datasets. These carry real figures compiled from real
- * pages, so they are labelled as research rather than as sample data — the mock
- * framing exists to keep invented numbers out, not to disown genuine ones.
- */
-const RESEARCH_TABLES = new Set(["llm_pricing", "dubai_rent", "gpu_cloud"]);
-
-interface ResearchPayload {
-  question: string;
-  description: string;
-  sources: Array<{ id: string; url: string; title: string }>;
-  fields: Dataset["fields"];
-  records: Dataset["records"];
-  findings: Dataset["findings"];
-}
-
-/**
- * `fetch` has no timeout of its own — a dev server that hung (or a laptop that went
- * to sleep mid-demo) would leave `handleMockData` awaiting forever, which is worse
- * than a thrown error: the voice turn never resolves at all, so the agent just goes
- * silent with no way to recover. Abort and turn that into a short, catchable error
- * instead.
- */
-const MOCK_FETCH_TIMEOUT_MS = 8000;
-
-async function fetchWithTimeout(url: string, timeoutMs = MOCK_FETCH_TIMEOUT_MS): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
-      throw new Error(`timed out after ${Math.round(timeoutMs / 1000)}s — is the dev server running?`);
-    }
-    throw err;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function loadResearchDataset(table: string): Promise<Dataset> {
-  const res = await fetchWithTimeout(`/api/mock/research/${table}`);
-  if (!res.ok) throw new Error(`research fixture ${table} returned ${res.status}`);
-  const payload = (await res.json()) as ResearchPayload;
-  const fetchedAt = new Date().toISOString();
-
-  return {
-    id: `ds_${table}`,
-    question: payload.question,
-    headline: `${payload.records.length} rows across ${payload.sources.length} sources`,
-    createdAt: fetchedAt,
-    sources: payload.sources.map((s) => ({ ...s, fetchedAt })),
-    fields: payload.fields,
-    records: payload.records,
-    findings: payload.findings,
-  };
-}
-
-async function loadGeneratedTable(table: string, rows?: number): Promise<Dataset> {
-  const url = `/api/mock/${table}${rows ? `?rows=${rows}` : ""}`;
-  const res = await fetchWithTimeout(url);
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`mock API returned ${res.status}: ${body.slice(0, 200)}`);
-  }
-  const sourceId = `src_mock_${table}`;
-  const { fields, records } = csvToTable(await res.text(), sourceId);
-
-  return {
-    id: `ds_mock_${table}`,
-    question: `Sample data: ${table}`,
-    // Labelled everywhere it surfaces. Nobody should be able to mistake a generated
-    // dashboard for a research result, on stage or in a screenshot.
-    headline: `${records.length} generated rows — sample data, not researched`,
-    createdAt: new Date().toISOString(),
-    sources: [
-      {
-        id: sourceId,
-        url: new URL(url, location.origin).toString(),
-        title: `Mock table: ${table} (generated locally)`,
-        fetchedAt: new Date().toISOString(),
-      },
-    ],
-    fields,
-    records,
-    findings: describeTable(table, records.length, fields.length),
-  };
-}
-
-/** Mechanical notes about the shape of a generated table — never invented insight. */
-function describeTable(table: string, rowCount: number, columnCount: number) {
-  return [
-    { text: `Generated sample table "${table}" — ${rowCount} rows, ${columnCount} columns.`, sourceIds: [] },
-    { text: "This data is synthetic. It is here to exercise the interface, not to inform a decision.", sourceIds: [] },
-  ];
 }
 
 async function handleRenderUi(raw: unknown): Promise<unknown> {
@@ -1010,6 +869,45 @@ async function handleSetFilter(raw: unknown): Promise<unknown> {
   return rows === undefined ? `Filter applied to ${componentId}` : `Filter applied — ${rows} row${rows === 1 ? "" : "s"} visible`;
 }
 
+async function handleSetLayout(raw: unknown): Promise<unknown> {
+  const parsed = parseParams(SetLayoutParams, raw);
+  if (!parsed.ok) return errorMessage("set_layout", parsed.error);
+  const { layout } = parsed.data;
+
+  const spec = useLoom.getState().spec;
+  if (!spec) return "Nothing on the canvas yet — research something first.";
+  if (spec.layout === layout) return `Already showing the ${layout} layout.`;
+
+  useLoom.getState().setLayout(layout);
+  toolMessage(`set_layout → ${layout}`);
+  return `Switched to the ${layout} layout.`;
+}
+
+/** Named presets → the same spans and pixel heights the drag handle commits. */
+const WIDTH_SPANS = { small: 4, medium: 6, large: 8, full: 12 } as const;
+const HEIGHT_PX = { short: 240, medium: 400, tall: 560 } as const;
+
+async function handleResizeComponent(raw: unknown): Promise<unknown> {
+  const parsed = parseParams(ResizeComponentParams, raw);
+  if (!parsed.ok) return errorMessage("resize_component", parsed.error);
+  const { id, width, height } = parsed.data;
+
+  if (!width && !height) {
+    return errorMessage("resize_component", "say what to change — a width (small/medium/large/full) or a height (short/medium/tall)");
+  }
+
+  const size = {
+    ...(width ? { span: WIDTH_SPANS[width] } : {}),
+    ...(height ? { height: HEIGHT_PX[height] } : {}),
+  };
+  const ok = useLoom.getState().resizeComponent(id, size);
+  if (!ok) return errorMessage("resize_component", `no component with id ${id}`);
+
+  const parts = [width && `${width} wide`, height && `${height}`].filter(Boolean);
+  toolMessage(`resize_component → ${id} (${parts.join(", ")})`);
+  return `Resized ${id} to ${parts.join(" and ")}.`;
+}
+
 async function handleFocusComponent(raw: unknown): Promise<unknown> {
   const parsed = parseParams(FocusComponentParams, raw);
   if (!parsed.ok) return errorMessage("focus_component", parsed.error);
@@ -1045,8 +943,9 @@ export function createToolHandlers(): Record<string, (params: any) => Promise<an
     render_ui: handleRenderUi,
     update_component: handleUpdateComponent,
     set_filter: handleSetFilter,
+    set_layout: handleSetLayout,
+    resize_component: handleResizeComponent,
     focus_component: handleFocusComponent,
-    mock_data: handleMockData,
     sort_table: handleSortTable,
     add_component: handleAddComponent,
     remove_component: handleRemoveComponent,

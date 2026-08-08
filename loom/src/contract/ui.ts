@@ -44,6 +44,18 @@ export const Sort = z.object({
   dir: z.enum(["asc", "desc"]).default("asc"),
 });
 
+/**
+ * Per-component sizing, written by the drag handle and the `resize_component` voice
+ * tool alike. `span` is a 12-column grid width (grid/focus layouts only — masonry
+ * columns have a fixed width by construction); `height` is an explicit card height
+ * in pixels, honoured by every layout.
+ */
+export const ComponentSize = z.object({
+  span: z.number().int().min(1).max(12).optional(),
+  height: z.number().min(120).max(1200).optional(),
+});
+export type ComponentSize = z.infer<typeof ComponentSize>;
+
 const base = {
   id: z.string().describe("Stable id you will reuse to update this component later."),
   title: z.string().optional(),
@@ -59,6 +71,12 @@ const base = {
    * spec written before templates existed still renders exactly as it did.
    */
   columnSpan: z.number().int().min(1).max(12).optional(),
+  /**
+   * Grid geometry once the user has dragged or resized the card. `columnSpan` is
+   * the template's opening request; this is where the layout actually ended up, so
+   * it wins when both are present.
+   */
+  size: ComponentSize.optional(),
 };
 
 export const StatCardsSpec = z.object({
@@ -159,9 +177,18 @@ export const UiComponentSpec = z.discriminatedUnion("type", [
 ]);
 export type UiComponentSpec = z.infer<typeof UiComponentSpec>;
 
+/**
+ * The three presets the user can switch between (plus `stack`, which the app keeps
+ * for provisional/tiny dashboards). `masonry` packs cards into columns by their
+ * natural height; `focus` puts one primary artifact large with the rest in a rail;
+ * `grid` is the structured 12-column layout.
+ */
+export const LayoutKind = z.enum(["stack", "grid", "masonry", "focus"]);
+export type LayoutKind = z.infer<typeof LayoutKind>;
+
 export const UiSpec = z.object({
   title: z.string().optional(),
-  layout: z.enum(["stack", "grid"]).default("grid"),
+  layout: LayoutKind.default("grid"),
   components: z.array(UiComponentSpec).min(1).max(10),
 });
 export type UiSpec = z.infer<typeof UiSpec>;
@@ -169,6 +196,7 @@ export type UiSpec = z.infer<typeof UiSpec>;
 /** Shape reported back by `get_ui_state` so the agent can see what is on screen. */
 export const UiState = z.object({
   title: z.string().optional(),
+  layout: LayoutKind.optional(),
   components: z.array(
     z.object({
       id: z.string(),
@@ -178,6 +206,7 @@ export const UiState = z.object({
       datasetId: z.string().optional(),
       visibleRows: z.number().optional(),
       filters: z.array(Filter).optional(),
+      size: ComponentSize.optional(),
     }),
   ),
 });
