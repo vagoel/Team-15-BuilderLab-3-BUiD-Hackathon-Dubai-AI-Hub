@@ -196,6 +196,6 @@ Note: V2 roadmap. Templates make output match your organization's format. Own so
 
 <p class="cta"><a href="/">Now watch it live →</a></p>
 
-<p class="cta"><a href="https://www.loom.com/share/71a648c91795474882f5c1c1c97f4b32" target="_blank" rel="noreferrer">Watch the demo video →</a></p>
+<p class="cta"><a href="https://www.loom.com/share/48817936b04848a0b0207c6c9a5089b9" target="_blank" rel="noreferrer">Watch the demo video →</a></p>
 
 Note: Close the deck, tap the link, and go straight into the live demo — or play the recorded walkthrough.
