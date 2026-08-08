@@ -125,6 +125,7 @@ id, which is public by design.
 | `src/research/` | context.dev client, warm cache, parallel research pipeline |
 | `src/canvas/` | Spec renderer, auto-layout, and the five components |
 | `src/canvas/autoLayout.ts` | Turns a dataset into a dashboard, so the model never has to |
+| `src/report/` | Builds a pure report model and renders the print/PDF preview in the browser |
 | `mock/` | Vite dev plugin serving mock tables and the pre-researched datasets over HTTP |
 | `scripts/` | `preflight` (go/no-go) and `sync-agent` (push the contract to ElevenLabs) |
 | `src/voice/` | ElevenLabs session, tool handlers, agent config generator |
@@ -154,6 +155,15 @@ id, which is public by design.
 | `focus_component` | Scroll a component into view and highlight it |
 | `scroll_component` | Scroll *inside* a component that has its own scrollbar |
 | `get_ui_state` | Read what is currently on screen |
+
+**Exporting**
+
+| Tool | Does |
+|---|---|
+| `export_report` | Open the current visual dashboard as a print-ready report; a second explicit action opens the browser print dialog for Save as PDF |
+| `export_data` | Download the selected table as CSV, including active voice/column filters and sorting |
+
+The same report preview is available through **Preview PDF** in the canvas header. It uses semantic, non-virtualized tables so every filtered row can flow across printed pages, while charts remain vector SVG with grayscale-safe series treatments. The file is produced by the browser’s Save as PDF destination, is not persisted by Loom, and may be long when many rows remain.
 
 Two of these exist because of specific failures. `scroll_component` was missing, so "scroll
 down a bit" was answered by `focus_component` twice while the agent claimed success.

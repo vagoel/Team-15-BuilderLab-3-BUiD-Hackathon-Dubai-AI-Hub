@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RenderUiParams, TOOLS, toElevenLabsTool } from "./tools.js";
+import { ExportReportParams, RenderUiParams, TOOLS, toElevenLabsTool } from "./tools.js";
 import { Filter, UiSpec } from "./ui.js";
 
 describe("tool contract", () => {
@@ -27,10 +27,20 @@ describe("tool contract", () => {
     expect(TOOLS.get_ui_state.waitForResponse).toBe(true);
     expect(TOOLS.set_filter.waitForResponse).toBe(true);
     expect(TOOLS.render_ui.waitForResponse).toBe(true);
+    expect(TOOLS.export_report.waitForResponse).toBe(true);
   });
 
   it("gives the slow tools something to say while they run", () => {
     expect(TOOLS.research.preToolSpeech).toBeTruthy();
+  });
+});
+
+describe("export_report parameters", () => {
+  it("keeps a flat string action and defaults to preview", () => {
+    expect(ExportReportParams.parse({})).toEqual({ action: "preview" });
+    const schema = (toElevenLabsTool(TOOLS.export_report) as { parameters: any }).parameters;
+    expect(schema.properties.action.type).toBe("string");
+    expect(schema.properties.action.enum).toEqual(["preview", "print"]);
   });
 });
 

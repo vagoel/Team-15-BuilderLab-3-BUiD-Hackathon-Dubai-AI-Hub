@@ -305,6 +305,46 @@ describe("createToolHandlers", () => {
     expect(result as string).toMatch(/^scroll_component failed:/);
   });
 
+  it("export_report handles missing and in-progress reports without opening the preview", async () => {
+    const handlers = createToolHandlers();
+    expect(await handlers.export_report!({ action: "preview" })).toMatch(/no report/i);
+    useLoom.getState().setSpec({
+      layout: "grid",
+      components: [{ id: "stats", type: "stat_cards", items: [{ label: "Rows", value: "3" }] }],
+    });
+    useLoom.getState().setStatus("researching");
+    expect(await handlers.export_report!({ action: "preview" })).toMatch(/still being researched/i);
+    expect(useLoom.getState().reportPreview.open).toBe(false);
+  });
+
+  it("export_report previews first and prints only from an open preview", async () => {
+    useLoom.getState().addDataset(makeDataset("ds1"));
+    useLoom.getState().setSpec({
+      title: "Report",
+      layout: "grid",
+      components: [{ id: "table", type: "comparison_table", datasetId: "ds1", columns: ["price"], filters: [], highlights: [] }],
+    });
+    const handlers = createToolHandlers();
+    const firstPrint = await handlers.export_report!({ action: "print" });
+    expect(firstPrint).toMatch(/preview first/i);
+    expect(useLoom.getState().reportPreview.open).toBe(true);
+    expect(useLoom.getState().reportPreview.printRequestId).toBe(0);
+    const print = await handlers.export_report!({ action: "print" });
+    expect(print).toMatch(/print dialog/i);
+    expect(useLoom.getState().reportPreview.printRequestId).toBe(1);
+  });
+
+  it("export_report defaults to preview and reports its contents", async () => {
+    useLoom.getState().addDataset(makeDataset("ds1"));
+    useLoom.getState().setSpec({
+      layout: "grid",
+      components: [{ id: "table", type: "comparison_table", datasetId: "ds1", columns: ["price"], filters: [], highlights: [] }],
+    });
+    const result = await createToolHandlers().export_report!({});
+    expect(result).toMatch(/3 table rows/i);
+    expect(useLoom.getState().reportPreview.open).toBe(true);
+  });
+
   it("mock_data times out instead of hanging the voice turn forever on a stalled dev server", async () => {
     vi.useFakeTimers();
     const originalFetch = globalThis.fetch;

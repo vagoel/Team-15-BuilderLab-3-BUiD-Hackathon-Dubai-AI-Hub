@@ -29,6 +29,17 @@ export interface Progress {
 
 export type Status = "idle" | "connecting" | "listening" | "researching" | "ready" | "error";
 
+export interface TableViewFilterState {
+  datasetId: string;
+  filters: Filter[];
+}
+
+export interface ReportPreviewState {
+  open: boolean;
+  openedAt: number | null;
+  printRequestId: number;
+}
+
 /** How many dashboards back you can step. Deep enough for a demo, shallow enough
  * that nobody is scrolling through a session's worth of state. */
 const HISTORY_LIMIT = 20;
@@ -44,6 +55,8 @@ interface LoomState {
   progress: Progress | null;
   focusedId: string | null;
   error: string | null;
+  tableViewFilters: Record<string, TableViewFilterState>;
+  reportPreview: ReportPreviewState;
 
   setSpec: (spec: UiSpec) => void;
   undo: () => UiSpec | null;
@@ -53,6 +66,10 @@ interface LoomState {
   removeComponent: (id: string) => boolean;
   moveComponent: (id: string, position: number) => boolean;
   setFilter: (componentId: string, filters: Filter[]) => boolean;
+  setTableViewFilters: (componentId: string, datasetId: string, filters: Filter[]) => void;
+  openReportPreview: () => boolean;
+  closeReportPreview: () => void;
+  requestReportPrint: () => boolean;
   focusComponent: (id: string) => boolean;
   getUiState: () => UiState;
 
@@ -78,6 +95,8 @@ export const useLoom = create<LoomState>((set, get) => ({
   progress: null,
   focusedId: null,
   error: null,
+  tableViewFilters: {},
+  reportPreview: { open: false, openedAt: null, printRequestId: 0 },
 
   setSpec: (spec) =>
     set((s) => ({
@@ -97,7 +116,13 @@ export const useLoom = create<LoomState>((set, get) => ({
   clearCanvas: () => {
     const spec = get().spec;
     if (!spec) return false;
-    set({ spec: null, history: [...get().history, spec].slice(-HISTORY_LIMIT), status: "idle" });
+    set({
+      spec: null,
+      history: [...get().history, spec].slice(-HISTORY_LIMIT),
+      status: "idle",
+      tableViewFilters: {},
+      reportPreview: { open: false, openedAt: null, printRequestId: 0 },
+    });
     return true;
   },
 
@@ -176,6 +201,34 @@ export const useLoom = create<LoomState>((set, get) => ({
     return hit;
   },
 
+  setTableViewFilters: (componentId, datasetId, filters) =>
+    set((state) => {
+      if (!filters.length) {
+        const { [componentId]: _removed, ...tableViewFilters } = state.tableViewFilters;
+        return { tableViewFilters };
+      }
+      return { tableViewFilters: { ...state.tableViewFilters, [componentId]: { datasetId, filters } } };
+    }),
+
+  openReportPreview: () => {
+    if (!get().spec || get().status === "researching") return false;
+    set((state) => ({
+      reportPreview: { ...state.reportPreview, open: true, openedAt: Date.now() },
+    }));
+    return true;
+  },
+
+  closeReportPreview: () =>
+    set((state) => ({ reportPreview: { ...state.reportPreview, open: false, openedAt: null } })),
+
+  requestReportPrint: () => {
+    if (!get().reportPreview.open) return false;
+    set((state) => ({
+      reportPreview: { ...state.reportPreview, printRequestId: state.reportPreview.printRequestId + 1 },
+    }));
+    return true;
+  },
+
   focusComponent: (id) => {
     const exists = get().spec?.components.some((c) => c.id === id) ?? false;
     if (exists) {
@@ -188,7 +241,7 @@ export const useLoom = create<LoomState>((set, get) => ({
   },
 
   getUiState: () => {
-    const { spec, datasets } = get();
+    const { spec, datasets, tableViewFilters } = get();
     if (!spec) return { components: [] };
     return {
       title: spec.title,
@@ -199,13 +252,20 @@ export const useLoom = create<LoomState>((set, get) => ({
         // Only row-bearing components report a row count. A source list reporting
         // "120 visible rows" invites the agent to say something untrue about it.
         const hasRows = c.type === "comparison_table" || c.type === "chart";
+        const manual = c.type === "comparison_table" ? tableViewFilters[c.id] : undefined;
         return {
           id: c.id,
           type: c.type,
           title: c.title,
           datasetId,
           filters,
-          visibleRows: hasRows && datasetId ? applyFilters(records, filters ?? []).length : undefined,
+          visibleRows:
+            hasRows && datasetId
+              ? applyFilters(records, [
+                  ...(filters ?? []),
+                  ...(manual?.datasetId === datasetId ? manual.filters : []),
+                ]).length
+              : undefined,
         };
       }),
     };
@@ -227,7 +287,17 @@ export const useLoom = create<LoomState>((set, get) => ({
   setProgress: (progress) => set({ progress }),
   setError: (error) => set({ error, status: error ? "error" : "idle" }),
   reset: () =>
-    set({ spec: null, history: [], datasets: {}, messages: [], progress: null, error: null, status: "idle" }),
+    set({
+      spec: null,
+      history: [],
+      datasets: {},
+      messages: [],
+      progress: null,
+      error: null,
+      status: "idle",
+      tableViewFilters: {},
+      reportPreview: { open: false, openedAt: null, printRequestId: 0 },
+    }),
 }));
 
 function clamp(n: number, lo: number, hi: number): number {
