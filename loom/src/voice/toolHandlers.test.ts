@@ -12,6 +12,9 @@ vi.mock("../research/index.js", () => ({
   deepenResearch: vi.fn(),
   readSource: vi.fn(),
   getDataset: vi.fn(),
+  searchForSources: vi.fn(),
+  registerDirectUrls: vi.fn(),
+  datasetHasSource: vi.fn(() => true),
 }));
 
 const { createToolHandlers } = await import("./toolHandlers.js");
@@ -112,11 +115,12 @@ describe("createToolHandlers", () => {
     await expect(handlers.render_ui!({ components: "not json at all {{{" })).resolves.toEqual(
       expect.any(String),
     );
-    await expect(handlers.research!(null)).resolves.toEqual(expect.any(String));
+    await expect(handlers.collect_sources!(null)).resolves.toEqual(expect.any(String));
+    await expect(handlers.search_web!(null)).resolves.toEqual(expect.any(String));
     await expect(handlers.get_ui_state!(undefined)).resolves.not.toBeUndefined();
   });
 
-  it("research with mode add joins the existing report instead of replacing it", async () => {
+  it("collect_sources with report_mode add joins the existing report", async () => {
     const research = await import("../research/index.js");
     const first = makeDataset("ds_first");
     useLoom.getState().addDataset(first);
@@ -133,66 +137,91 @@ describe("createToolHandlers", () => {
       datasetId: "ds_second",
       headline: "h",
       keyFindings: [],
-      sourceCount: 0,
+      sourceCount: 1,
       recordCount: 3,
       availableFields: [],
     });
     vi.mocked(research.getDataset).mockReturnValue(second);
 
     const handlers = createToolHandlers();
-    const result = await handlers.research!({
+    const result = await handlers.collect_sources!({
       question: "q2",
-      seedUrls: ["https://x.test"],
-      fields: [
-        { key: "price", label: "Price", type: "number" },
-        { key: "name", label: "Name", type: "string" },
-      ],
-      mode: "add",
+      sourceSetId: "ss_x",
+      indexes: [0],
+      mode: "markdown",
+      report_mode: "add",
     });
 
     const spec = useLoom.getState().spec!;
-    // The original table survives, and the new dataset's components arrive suffixed
-    // so the two can be addressed separately.
     expect(spec.components.some((c) => c.id === "auto_table")).toBe(true);
     expect(spec.components.some((c) => c.id.endsWith("__second"))).toBe(true);
-    expect(result).toMatchObject({ mode: "add" });
-    expect((result as { note: string }).note).toMatch(/ADDED/);
+    expect(result).toMatchObject({ reportMode: "add" });
   });
 
-  it("research without mode still replaces the canvas", async () => {
+  it("collect_sources tells the agent outright when no rows were produced", async () => {
     const research = await import("../research/index.js");
-    useLoom.getState().addDataset(makeDataset("ds_first"));
-    useLoom.getState().setSpec({
-      layout: "grid",
-      components: [
-        { id: "auto_table", type: "comparison_table", datasetId: "ds_first", columns: ["price"], filters: [], highlights: [] },
-      ],
-    });
-
-    const second = makeDataset("ds_second");
+    const empty = { ...makeDataset("ds_prose"), records: [], fields: [] };
     vi.mocked(research.runResearch).mockResolvedValue({
-      datasetId: "ds_second",
-      headline: "h",
+      datasetId: "ds_prose",
+      headline: "no tables",
       keyFindings: [],
-      sourceCount: 0,
-      recordCount: 3,
+      sourceCount: 1,
+      recordCount: 0,
       availableFields: [],
     });
-    vi.mocked(research.getDataset).mockReturnValue(second);
+    vi.mocked(research.getDataset).mockReturnValue(empty);
 
     const handlers = createToolHandlers();
-    await handlers.research!({
-      question: "q2",
-      seedUrls: ["https://x.test"],
-      fields: [
-        { key: "price", label: "Price", type: "number" },
-        { key: "name", label: "Name", type: "string" },
+    const result = (await handlers.collect_sources!({
+      question: "q",
+      sourceSetId: "ss_x",
+      indexes: [0],
+      mode: "markdown",
+    })) as { note: string };
+
+    // Left to infer it from recordCount: 0, the agent narrated a full table over an
+    // empty dataset. So the tool result says it in words.
+    expect(result.note).toMatch(/NO table rows/);
+    expect(result.note).toMatch(/read a source/i);
+  });
+
+  it("search_web hands back indexed candidates and tells the agent not to send URLs", async () => {
+    const research = await import("../research/index.js");
+    vi.mocked(research.searchForSources).mockResolvedValue({
+      id: "ss_1",
+      origin: "search",
+      query: "q",
+      createdAt: new Date().toISOString(),
+      candidates: [
+        { index: 0, url: "https://a.test", title: "A", description: "d" },
+        { index: 1, url: "https://b.test", title: "B" },
       ],
     });
 
-    const spec = useLoom.getState().spec!;
-    const datasetIds = spec.components.map((c) => ("datasetId" in c ? c.datasetId : undefined)).filter(Boolean);
-    expect(datasetIds.every((id) => id === "ds_second")).toBe(true);
+    const handlers = createToolHandlers();
+    const result = (await handlers.search_web!({ query: "q" })) as {
+      sourceSetId: string;
+      candidates: Array<{ index: number }>;
+      note: string;
+    };
+
+    expect(result.sourceSetId).toBe("ss_1");
+    expect(result.candidates.map((c) => c.index)).toEqual([0, 1]);
+    expect(result.note).toMatch(/only indexes/i);
+  });
+
+  it("set_research_findings rejects a sourceId that is not in the dataset", async () => {
+    const research = await import("../research/index.js");
+    useLoom.getState().addDataset(makeDataset("ds1"));
+    vi.mocked(research.datasetHasSource).mockReturnValue(false);
+
+    const handlers = createToolHandlers();
+    const result = await handlers.set_research_findings!({
+      datasetId: "ds1",
+      findings: [{ text: "something", sourceId: "src_made_up" }],
+    });
+
+    expect(String(result)).toMatch(/not in this dataset/);
   });
 
   it("set_filter reports the new visible row count", async () => {

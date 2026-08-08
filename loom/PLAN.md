@@ -8,6 +8,14 @@ Then you keep talking — to the dashboard.
 
 ---
 
+> **Superseded (2026-08-08).** Everything below describing context.dev `/web/extract`
+> — the structured-extraction endpoint, its ~22s budget, its JSON-Schema `fields`
+> contract and the heuristic fallback behind it — is historical. That path was removed
+> in favour of search-first raw retrieval (`web/search` → `scrape/markdown` | `crawl` |
+> `scrape/images`) with deterministic markdown-table parsing. See README.md
+> "Architecture" and `src/research/context.ts`. The rest of this plan still stands.
+
+
 ## 1. The one-paragraph pitch
 
 Chat gives you a wall of text. Loom gives you an interface. Ask *"compare 2-bedroom

@@ -16,14 +16,18 @@ The voice is the interface. The UI is what the voice produces.
 ```
   voice ──► ElevenLabs Agent
               │
-              │  ┌── research(question, seedUrls, fields) ──┐
-              ├──┤                                          │
-              │  │   browser ──► /api/context/* ──► context.dev
-              │  │       │        (Vite proxy holds the key)
-              │  │       └──► dataset store (zustand)
-              │  │                    │
-              │  └────── { datasetId, headline, keyFindings } ──┐
-              │                             ~200 tokens ────────┘
+              │  ┌── search_web(query) ─────────────────────┐
+              │  │   browser ──► /api/context/v1/web/search     │
+              │  │   └──► { sourceSetId, numbered candidates }  │
+              ├──┤                                              │
+              │  ├── collect_sources(sourceSetId, indexes, mode)│
+              │  │   browser ──► /api/context/* ──► context.dev │
+              │  │       │        (Vite proxy holds the key)    │
+              │  │       │        markdown | crawl | images     │
+              │  │       └──► dataset store (zustand)           │
+              │  │                    │                         │
+              │  └────── { datasetId, headline, keyFindings } ──┘
+              │                             ~200 tokens
               │
               └── (dashboard mounts itself from the dataset)
                               │
@@ -38,10 +42,24 @@ language model. `research` returns a dataset id, a headline and three findings �
 about 200 tokens whether the run pulled 6 rows or 600. The canvas reads the actual
 rows from the store. Turn latency is flat with respect to data volume.
 
-**2. The agent designs the schema.** `research` takes a `fields` array the model
-authors *before* it goes looking — it decides that comparing apartments means `area`,
-`price_aed`, `beds`, `size_sqft`. context.dev then fills that schema from every page
-in parallel. The model chooses the shape of the answer; the API does the reading.
+**2. The agent never picks a URL, and never invents a row.** Research is two steps:
+`search_web` finds real pages and returns numbered candidates; `collect_sources` reads
+the ones the agent chose *by index*. No parameter anywhere accepts a raw URL, so a
+plausible-looking address the model composed cannot be fetched. The one exception is
+`use_direct_urls`, for URLs the user actually said.
+
+What comes back is raw: markdown, crawled pages, or image metadata. Rows are parsed
+deterministically out of tables the page genuinely printed — `markdownTable.ts` handles
+the awkward parts, including Wikipedia's `rowspan`-flattened cells and tables split
+across eleven per-decade blocks (487 rows from one page).
+
+> **This is a deliberate loss of coverage and a gain in honesty.** Loom used to call
+> context.dev's `/web/extract`, an LLM that fills a schema you design. It summarised:
+> that same 487-row page came back as *one* record, and nothing distinguished rows that
+> were read from rows that were composed. The endpoint is gone. A prose page now yields
+> **zero rows** — the agent reads it with `read_source` and writes cited findings
+> instead, each tagged with the source id it came from, and the tool result says in
+> words that no table was produced so the agent cannot imply otherwise.
 
 **3. The model states intent; the app decides presentation.** The dashboard builds
 itself from the dataset — `src/canvas/autoLayout.ts` picks the category to group by,
@@ -69,7 +87,12 @@ Measured against context.dev with our own key before the event:
 
 | Call | Cold | Warm |
 |---|---|---|
+| `web/search`, 10 results | ~2.4 s | — |
 | `scrape/markdown`, 32 KB page | 3.39 s | 0.90 s |
+| `scrape/markdown`, 300 KB page | ~1 s | cached |
+
+The retired `/web/extract` path cost ~22 s per URL by itself, which is most of what the
+two-step flow above gives back.
 
 That gap is why there is a cache layer and why every source is fetched in parallel.
 Progress streams into the UI as each page lands, so source cards appear one at a time
@@ -122,14 +145,37 @@ id, which is public by design.
 |---|---|
 | `src/contract/` | Zod schemas for every tool, the UI spec, and the dataset. Single source of truth |
 | `src/store.ts` | Zustand store. React state is the only truth; the agent mutates through actions and reads back through `get_ui_state` |
-| `src/research/` | context.dev client, warm cache, parallel research pipeline |
-| `src/canvas/` | Spec renderer, auto-layout, and the five components |
+| `src/research/` | context.dev raw clients, source-set provenance, warm cache, pipeline |
+| `src/canvas/` | Spec renderer, auto-layout, template placement, and the six components |
 | `src/canvas/autoLayout.ts` | Turns a dataset into a dashboard, so the model never has to |
 | `mock/` | Vite dev plugin serving mock tables and the pre-researched datasets over HTTP |
 | `scripts/` | `preflight` (go/no-go) and `sync-agent` (push the contract to ElevenLabs) |
 | `src/voice/` | ElevenLabs session, tool handlers, agent config generator |
-| `src/chat/` | The left rail |
+| `src/chat/` | The conversation rail |
+| `src/templates/` | Saved report layouts: capture, local storage, and the far-left rail |
 | `src/lib/filter.ts` | Filter + format logic shared by the table, the chart and `get_ui_state` so all three agree on row counts |
+
+## Report templates
+
+A finished report can be saved as a reusable layout from the collapsed rail on the far
+left. Templates are **layout recipes, not copied reports**: capture keeps component
+kinds, order and column spans, and strips every data binding — dataset ids, field keys,
+chart axes, filters, values, titles. That is what lets a layout saved from a pricing
+comparison be selected for a restaurant report and still make sense.
+
+They live in `localStorage` only, versioned and re-validated on every read, so a
+corrupt or older entry is dropped individually rather than breaking startup.
+
+Selection is injected two ways at once, on purpose:
+
+- the serialized recipe goes to ElevenLabs as a `report_template_context` dynamic
+  variable, so the agent aims its research at the slots it will have to fill;
+- the same snapshot is applied by `canvas/templateLayout.ts`, because being *told*
+  about a template is not enforcement.
+
+The snapshot is pinned when the session starts and the rail locks until it ends —
+otherwise the agent's instructions and the rendered canvas could disagree mid-call.
+With no template selected the variable is `NONE` and layout stays adaptive.
 
 ## Tools the agent can call
 
@@ -137,10 +183,13 @@ id, which is public by design.
 
 | Tool | Does |
 |---|---|
-| `research` | Read live pages into a dataset shaped by fields the agent designed |
-| `deepen` | Extend an existing dataset with another angle, reusing what was already read |
+| `search_web` | Find real pages. Returns a source set and numbered candidates; reads nothing |
+| `use_direct_urls` | Register URLs the user supplied, skipping search |
+| `collect_sources` | Read chosen candidates by index — `markdown`, bounded `crawl`, or `images` |
+| `set_research_findings` | Add findings the agent read itself; each needs a source id from this dataset |
+| `deepen` | Extend an existing dataset in place with another angle |
 | `read_source` | Full text of one source, truncated before it reaches the model |
-| `mock_data` | Load a pre-researched or generated table without spending an extraction credit |
+| `mock_data` | Load a pre-researched or generated table without spending a credit |
 
 **Changing what is on screen**
 
@@ -170,7 +219,7 @@ pnpm preflight
 ```
 
 Checks both API keys, the remaining quota on each, that the agent exists with all its
-tools attached and public auth, and that context.dev can actually scrape and extract.
+tools attached and public auth, and that context.dev can actually search and scrape.
 Exits non-zero if anything blocking is wrong. Every check in it is there because that
 exact thing failed at least once during the build.
 
@@ -178,10 +227,9 @@ exact thing failed at least once during the build.
 pnpm preflight --deep
 ```
 
-Also measures real extraction latency across five live pages. The abort budget in
-`src/research/context.ts` is 45s against a single measured ~22s call; if the real tail
-is fatter than that sample, calls abort and fall back to heuristic parsing — which
-produces plausible wrong answers rather than an error. This is the check that tells you.
+Also exercises the costlier raw capabilities — a bounded crawl and an image scrape —
+and measures markdown latency across three live pages, printing the credits each call
+consumed. These stay out of the basic check because crawl bills per page.
 
 ```bash
 pnpm sync-agent

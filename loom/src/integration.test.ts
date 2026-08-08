@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createToolHandlers } from "./voice/toolHandlers.js";
 import { useLoom } from "./store.js";
+import { resetSourceSets } from "./research/index.js";
 
 /**
  * The demo path, end to end, against a stubbed context.dev.
@@ -15,15 +16,32 @@ import { useLoom } from "./store.js";
  * the model's judgement, not our code.
  */
 
-const ROWS_A = [
-  { plan: "Starter", price_usd: 29, seats: 3 },
-  { plan: "Team", price_usd: 99, seats: 10 },
-  { plan: "Business", price_usd: 249, seats: 50 },
-];
-const ROWS_B = [
-  { plan: "Basic", price_usd: 19, seats: 2 },
-  { plan: "Pro", price_usd: 79, seats: 8 },
-];
+/**
+ * Real markdown tables, because that is now the only thing that produces rows.
+ * The column headers become the schema — nobody hands the pipeline a field list.
+ */
+const TABLE_A = [
+  "# Pricing",
+  "",
+  "| Plan | Price | Seats |",
+  "| --- | --- | --- |",
+  "| Starter | $29 | 3 |",
+  "| Team | $99 | 10 |",
+  "| Business | $249 | 50 |",
+].join("\n");
+const TABLE_B = [
+  "# Pricing",
+  "",
+  "| Plan | Price | Seats |",
+  "| --- | --- | --- |",
+  "| Basic | $19 | 2 |",
+  "| Pro | $79 | 8 |",
+].join("\n");
+
+const PROSE_PAGE =
+  "# Market notes\n\nVendors in this space rarely publish comparable figures, and the " +
+  "spread is wide enough that analysts disagree. This page is entirely prose: there is no " +
+  "table anywhere on it, only paragraphs discussing the subject.";
 
 /**
  * Every test gets its own URLs.
@@ -41,10 +59,14 @@ function urls(): [string, string] {
 }
 
 interface StubOptions {
-  /** URLs whose extract call should fail, and how. */
+  /** URLs whose markdown scrape should fail, and how. */
   fail?: Record<string, { status: number; body: string }>;
-  /** Resolve every extract only after this many ms, to observe concurrency. */
+  /** Resolve every scrape only after this many ms, to observe concurrency. */
   delayMs?: number;
+  /** Serve prose instead of a table, to exercise the zero-rows path. */
+  prose?: boolean;
+  /** What web search should return as candidates. */
+  searchUrls?: string[];
 }
 
 function stubContextDev(options: StubOptions = {}) {
@@ -58,12 +80,20 @@ function stubContextDev(options: StubOptions = {}) {
       return jsonResponse({ status: "ok", brand: { title: "Example", colors: [{ hex: "#5b8cff" }] } });
     }
 
-    if (url.includes("/web/scrape/markdown")) {
-      return jsonResponse({ success: true, markdown: "# Pricing\n\nStarter $29\nTeam $99\n" });
+    if (url.includes("/web/search")) {
+      return jsonResponse({
+        query: "q",
+        results: (options.searchUrls ?? []).map((u, i) => ({
+          url: u,
+          title: `Result ${i}`,
+          description: "a candidate",
+          relevance: "high",
+        })),
+      });
     }
 
-    if (url.includes("/web/extract")) {
-      const target = JSON.parse(String(init?.body ?? "{}")).url as string;
+    if (url.includes("/web/scrape/markdown")) {
+      const target = decodeURIComponent(url.split("url=")[1] ?? "");
       started.push(target);
 
       const failure = options.fail?.[target];
@@ -74,11 +104,8 @@ function stubContextDev(options: StubOptions = {}) {
 
       if (options.delayMs) await new Promise((r) => setTimeout(r, options.delayMs));
       settled.push(target);
-      return jsonResponse({
-        status: "ok",
-        url: target,
-        data: { records: target.includes("//a") ? ROWS_A : ROWS_B },
-      });
+      const markdown = options.prose ? PROSE_PAGE : target.includes("//a") ? TABLE_A : TABLE_B;
+      return jsonResponse({ success: true, markdown });
     }
 
     if (url.includes("/api/mock/")) {
@@ -102,14 +129,32 @@ function jsonResponse(body: unknown) {
   });
 }
 
-const FIELDS = [
-  { key: "plan", label: "Plan", type: "string" as const },
-  { key: "price_usd", label: "Price", type: "currency" as const, unit: "$" },
-  { key: "seats", label: "Seats", type: "number" as const },
-];
+/**
+ * Discover then collect, the way the agent must.
+ *
+ * Written as a helper because the two-step protocol is the point of this file: every
+ * scenario below goes through a real source set, so none of them could smuggle in a
+ * URL that discovery never produced.
+ */
+async function research(
+  h: Record<string, (p: unknown) => Promise<unknown>>,
+  question: string,
+  targets: string[],
+  extra: Record<string, unknown> = {},
+) {
+  const found = (await h.search_web!({ query: question })) as { sourceSetId: string; candidates: unknown[] };
+  return (await h.collect_sources!({
+    question,
+    sourceSetId: found.sourceSetId,
+    indexes: targets.map((_, i) => i),
+    mode: "markdown",
+    ...extra,
+  })) as Record<string, unknown>;
+}
 
 beforeEach(() => {
   useLoom.getState().reset();
+  resetSourceSets();
   vi.unstubAllGlobals();
   try {
     sessionStorage.clear();
@@ -121,14 +166,10 @@ beforeEach(() => {
 describe("the demo path", () => {
   it("researches, mounts a dashboard, and hands the model only a summary", async () => {
     const BOTH = urls();
-    stubContextDev();
+    stubContextDev({ searchUrls: [...BOTH] });
     const h = createToolHandlers();
 
-    const summary = (await h.research!({
-      question: "Compare pricing across A and B",
-      seedUrls: [...BOTH],
-      fields: FIELDS,
-    })) as Record<string, unknown>;
+    const summary = await research(h, "Compare pricing across A and B", [...BOTH]);
 
     // The model must never receive the rows themselves — that is the whole latency plan.
     expect(JSON.stringify(summary).length).toBeLessThan(2000);
@@ -148,23 +189,23 @@ describe("the demo path", () => {
 
   it("charts the money column rather than whichever number came first", async () => {
     const BOTH = urls();
-    stubContextDev();
+    stubContextDev({ searchUrls: [...BOTH] });
     const h = createToolHandlers();
-    await h.research!({ question: "q", seedUrls: [...BOTH], fields: FIELDS });
+    await research(h, "q", [...BOTH]);
 
     const chart = useLoom.getState().spec!.components.find((c) => c.type === "chart");
     expect(chart).toBeDefined();
-    if (chart?.type === "chart") expect(chart.y).toEqual(["price_usd"]);
+    if (chart?.type === "chart") expect(chart.y).toEqual(["price"]);
   });
 
   it("reads every source in parallel, not one after another", async () => {
     // Serialising two sources at ~22s each is the difference between a demo and a
     // silence. Every request must be in flight before any of them comes back.
     const BOTH = urls();
-    const { started, settled } = stubContextDev({ delayMs: 60 });
+    const { started, settled } = stubContextDev({ delayMs: 60, searchUrls: [...BOTH] });
     const h = createToolHandlers();
 
-    const run = h.research!({ question: "q", seedUrls: [...BOTH], fields: FIELDS });
+    const run = research(h, "q", [...BOTH]);
     await new Promise((r) => setTimeout(r, 30));
     expect(started).toHaveLength(2);
     expect(settled).toHaveLength(0);
@@ -174,6 +215,7 @@ describe("the demo path", () => {
   it("degrades to the sources it could read when one page 404s", async () => {
     const BOTH = urls();
     stubContextDev({
+      searchUrls: [...BOTH],
       fail: {
         [BOTH[1]]: {
           status: 404,
@@ -183,11 +225,7 @@ describe("the demo path", () => {
     });
     const h = createToolHandlers();
 
-    const summary = (await h.research!({
-      question: "q",
-      seedUrls: [...BOTH],
-      fields: FIELDS,
-    })) as Record<string, unknown>;
+    const summary = await research(h, "q", [...BOTH]);
 
     // The run survives and still renders — one dead URL must never take the demo down.
     expect(useLoom.getState().spec).not.toBeNull();
@@ -207,10 +245,10 @@ describe("the demo path", () => {
       status: 401,
       body: JSON.stringify({ message: "credits have been completely depleted", error_code: "USAGE_EXCEEDED" }),
     };
-    stubContextDev({ fail: { [BOTH[0]]: depleted, [BOTH[1]]: depleted } });
+    stubContextDev({ searchUrls: [...BOTH], fail: { [BOTH[0]]: depleted, [BOTH[1]]: depleted } });
     const h = createToolHandlers();
 
-    const result = await h.research!({ question: "q", seedUrls: [...BOTH], fields: FIELDS });
+    const result = await research(h, "q", [...BOTH]);
 
     // Never a rejected promise: that would cut the agent off mid-sentence.
     expect(result).toBeDefined();
@@ -219,13 +257,13 @@ describe("the demo path", () => {
 
   it("filters by voice and reports a row count the agent can quote", async () => {
     const BOTH = urls();
-    stubContextDev();
+    stubContextDev({ searchUrls: [...BOTH] });
     const h = createToolHandlers();
-    await h.research!({ question: "q", seedUrls: [...BOTH], fields: FIELDS });
+    await research(h, "q", [...BOTH]);
 
     const reply = String(await h.set_filter!({
       componentId: "auto_table",
-      filters: [{ field: "price_usd", op: "lt", value: 80 }],
+      filters: [{ field: "price", op: "lt", value: 80 }],
     }));
     expect(reply).toMatch(/3/);
 
@@ -235,9 +273,9 @@ describe("the demo path", () => {
 
   it("survives a text filter, which used to match every row", async () => {
     const BOTH = urls();
-    stubContextDev();
+    stubContextDev({ searchUrls: [...BOTH] });
     const h = createToolHandlers();
-    await h.research!({ question: "q", seedUrls: [...BOTH], fields: FIELDS });
+    await research(h, "q", [...BOTH]);
 
     await h.set_filter!({ componentId: "auto_table", filters: [{ field: "plan", op: "eq", value: "Team" }] });
     const state = (await h.get_ui_state!({})) as { components: Array<{ id: string; visibleRows?: number }> };
@@ -246,11 +284,9 @@ describe("the demo path", () => {
 
   it("adds, moves and removes components without rebuilding the dashboard", async () => {
     const BOTH = urls();
-    stubContextDev();
+    stubContextDev({ searchUrls: [...BOTH] });
     const h = createToolHandlers();
-    const summary = (await h.research!({ question: "q", seedUrls: [...BOTH], fields: FIELDS })) as {
-      datasetId: string;
-    };
+    const summary = (await research(h, "q", [...BOTH])) as unknown as { datasetId: string };
 
     await h.remove_component!({ id: "auto_chart" });
     expect(ids()).not.toContain("auto_chart");
@@ -266,6 +302,67 @@ describe("the demo path", () => {
     expect(ids()[0]).toBe("auto_table");
 
     await h.remove_component!({ id: "nope" });
+  });
+
+  it("a prose-only topic produces sources and findings, never a fabricated table", async () => {
+    const BOTH = urls();
+    stubContextDev({ searchUrls: [...BOTH], prose: true });
+    const h = createToolHandlers();
+
+    const summary = await research(h, "q", [...BOTH]);
+    expect(summary.recordCount).toBe(0);
+    // The agent is told in the tool result, not left to infer it from a zero.
+    expect(String(summary.note)).toMatch(/NO table rows/);
+
+    const datasetId = String(summary.datasetId);
+    const dataset = useLoom.getState().datasets[datasetId]!;
+    expect(dataset.records).toEqual([]);
+    // The sources were read successfully — prose is material, not failure.
+    expect(dataset.sources.every((src) => src.fetchedAt && !src.error)).toBe(true);
+
+    // And the agent can turn them into a report by citing what it read.
+    const sourceId = dataset.sources[0]!.id;
+    const ok = await h.set_research_findings!({
+      datasetId,
+      findings: [{ text: "Vendors rarely publish comparable figures.", sourceId }],
+    });
+    expect(String(ok)).toMatch(/Added 1 finding/);
+    expect(useLoom.getState().datasets[datasetId]!.findings[0]?.sourceIds).toEqual([sourceId]);
+  });
+
+  it("refuses a finding whose source is not in the dataset", async () => {
+    const BOTH = urls();
+    stubContextDev({ searchUrls: [...BOTH], prose: true });
+    const h = createToolHandlers();
+    const summary = await research(h, "q", [...BOTH]);
+
+    // Without this check, this tool is a licence to write anything into a report
+    // and have it look researched.
+    const result = await h.set_research_findings!({
+      datasetId: String(summary.datasetId),
+      findings: [{ text: "Something I remembered", sourceId: "src_invented" }],
+    });
+    expect(String(result)).toMatch(/not in this dataset/);
+  });
+
+  it("registers user-supplied URLs without searching, and reads them", async () => {
+    const BOTH = urls();
+    const { fetchMock } = stubContextDev({ searchUrls: [] });
+    const h = createToolHandlers();
+
+    const registered = (await h.use_direct_urls!({ topic: "those pages", urls: [BOTH[0]] })) as {
+      sourceSetId: string;
+    };
+    const summary = (await h.collect_sources!({
+      question: "q",
+      sourceSetId: registered.sourceSetId,
+      indexes: [0],
+      mode: "markdown",
+    })) as Record<string, unknown>;
+
+    expect(summary.recordCount).toBe(3);
+    const requested = fetchMock.mock.calls.map((c) => String(c[0]));
+    expect(requested.some((u) => u.includes("/web/search"))).toBe(false);
   });
 
   it("never throws out of a handler, whatever the model sends", async () => {

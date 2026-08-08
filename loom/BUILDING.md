@@ -15,7 +15,7 @@ the UI is what the voice produces, and the data never travels through the model.
 | Piece | Choice | Why not the obvious alternative |
 |---|---|---|
 | Voice loop | ElevenLabs Agents (managed) | Custom-LLM mode means hosting an endpoint and adding a network hop per turn. Managed gives you Opus 4.8 with no key of your own |
-| Live data | context.dev `extract` | It takes a JSON Schema *you* design and returns rows. Scraping to markdown and parsing yourself is a regex swamp |
+| Live data | context.dev raw web APIs (`search`, `scrape/markdown`, `crawl`, `scrape/images`) | ~~`extract`~~ was tried first and cut: the LLM behind it summarised long list pages (one record from a page holding 487) and gave no way to tell a read row from a composed one. Raw markdown plus a deterministic table parser is exhaustive and auditable |
 | UI state | zustand | The agent and the user both mutate the same store. A component library that owns its own state gives you two truths |
 | Table | TanStack (headless) | AG Grid/MUI own sorting internally. Then a voice sort and a header click disagree, and `get_ui_state` starts lying to the agent |
 | Charts | Hand-rolled SVG | ~300 lines, zero bundle, and it matches the theme. Recharts would have cost more in fighting than it saved |

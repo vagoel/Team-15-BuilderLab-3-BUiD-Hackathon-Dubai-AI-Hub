@@ -120,7 +120,8 @@ async function main() {
       name: declared.name,
       description: declared.description,
       expects_response: declared.expects_response ?? false,
-      response_timeout_secs: tool.name === "research" ? 120 : 30,
+      // Retrieval reads several live pages; everything else is local and instant.
+      response_timeout_secs: tool.name === "collect_sources" ? 120 : 30,
       parameters: declared.parameters,
     };
 
@@ -135,6 +136,24 @@ async function main() {
       console.log(`  created  ${declared.name}`);
     }
   }
+
+  // Detach anything the contract no longer declares.
+  //
+  // This used to be additive only, which meant a renamed or deleted tool stayed
+  // attached to the live agent forever. The agent then called `research` — long
+  // since replaced by search_web/collect_sources — and the browser answered
+  // "Client tool with name research is not defined on client", mid-conversation,
+  // with nothing in the repo to explain why. The contract is the source of truth,
+  // so the attached set is replaced wholesale, not merged.
+  const contractNames = new Set(Object.values(TOOLS).map((t) => t.name));
+  const attachedBefore: string[] =
+    (await call(`/convai/agents/${agentId}`)).conversation_config?.agent?.prompt?.tool_ids ?? [];
+  const byId = new Map(existing.map((t) => [t.id, t.tool_config?.name]));
+  const stale = attachedBefore.filter((id) => {
+    const name = byId.get(id);
+    return name !== undefined && !contractNames.has(name);
+  });
+  for (const id of stale) console.log(`  detached ${byId.get(id)}`);
 
   await call(`/convai/agents/${agentId}`, {
     method: "PATCH",
@@ -175,6 +194,35 @@ async function main() {
       `${systemPrompt()}\n`,
     "utf8",
   );
+
+  // Read back and verify, rather than trusting a 200.
+  //
+  // A PATCH that returns 200 having quietly ignored `tool_ids` is exactly how the
+  // agent drifted out of sync with the contract in the first place — and the only
+  // symptom was a failed tool call during a live demo. Fail here instead.
+  const after = await call(`/convai/agents/${agentId}`);
+  const attachedIds: string[] = after.conversation_config?.agent?.prompt?.tool_ids ?? [];
+
+  // Re-fetch the tool list: `existing` predates the tools this run just created, so
+  // resolving ids against it would report every new tool as missing.
+  const nowById = new Map<string, string | undefined>(
+    ((await call("/convai/tools")).tools ?? []).map((t: { id: string; tool_config?: { name?: string } }) => [
+      t.id,
+      t.tool_config?.name,
+    ]),
+  );
+  const attachedNames = attachedIds.map((id) => nowById.get(id)).filter((n): n is string => !!n);
+  const missing = [...contractNames].filter((n) => !attachedNames.includes(n));
+  const extra = attachedNames.filter((n) => !contractNames.has(n));
+
+  if (missing.length || extra.length) {
+    throw new Error(
+      `Agent tools did not match the contract after sync.\n` +
+        (missing.length ? `  missing: ${missing.join(", ")}\n` : "") +
+        (extra.length ? `  unexpected: ${extra.join(", ")}\n` : "") +
+        `  The PATCH returned 200 but did not apply. Check the ElevenLabs API contract.`,
+    );
+  }
 
   console.log(`\nSynced ${toolIds.length} tools to ${agentId}`);
   console.log("Rewrote agent-prompt.md from SYSTEM_PROMPT");
