@@ -159,7 +159,8 @@ function describeErr(err: unknown): string {
 async function handleResearch(raw: unknown): Promise<unknown> {
   const parsed = parseParams(ResearchParams, raw);
   if (!parsed.ok) return errorMessage("research", parsed.error);
-  const { question, seedUrls, fields } = parsed.data;
+  const { question, seedUrls, fields, mode = "replace" } = parsed.data;
+  const append = mode === "add";
 
   toolMessage(
     `research → "${question}" across ${seedUrls.length} source${seedUrls.length === 1 ? "" : "s"} ` +
@@ -214,17 +215,23 @@ async function handleResearch(raw: unknown): Promise<unknown> {
     // Mount a dashboard here rather than waiting for the agent to ask for one. The
     // screen filling up is the whole product, and it must not depend on the model
     // getting a follow-up tool call right. render_ui then only handles changes.
+    // In add mode the new dataset joins the report instead of replacing it — same
+    // path mock_data takes, so the two tools cannot drift.
     if (full) {
-      const spec = defaultLayout(full);
-      useLoom.getState().setSpec(spec);
-      toolMessage(`auto-rendered → ${spec.components.map((c) => c.type).join(", ")}`);
+      const spec = mountDataset(full, append);
+      toolMessage(
+        `${append ? "added to report" : "auto-rendered"} → ${spec.components.map((c) => c.type).join(", ")}`,
+      );
       return {
         ...summary,
         rendered: spec.components.map((c) => c.type),
+        mode,
         note:
-          "A dashboard is already on screen showing " +
-          `${spec.components.map((c) => c.type).join(", ")}. Do NOT call render_ui now — ` +
-          "just say one short sentence about what the user can see.",
+          (append
+            ? "The new research has been ADDED to the existing report. "
+            : "A dashboard is already on screen showing " +
+              `${spec.components.map((c) => c.type).join(", ")}. `) +
+          "Do NOT call render_ui now — just say one short sentence about what the user can see.",
       };
     }
     return summary;
@@ -268,7 +275,12 @@ async function handleDeepen(raw: unknown): Promise<unknown> {
     useLoom.getState().setProgress(null);
     useLoom.getState().setStatus("ready");
     toolMessage(`deepen done: ${summary.recordCount} records from ${summary.sourceCount} sources`);
-    return summary;
+    return {
+      ...summary,
+      note:
+        "The dataset was extended in place — every component showing it has already " +
+        "updated. Do NOT call render_ui. Say one short sentence about what changed.",
+    };
   } catch (err) {
     useLoom.getState().setProgress(null);
     useLoom.getState().setStatus(useLoom.getState().spec ? "ready" : "idle");

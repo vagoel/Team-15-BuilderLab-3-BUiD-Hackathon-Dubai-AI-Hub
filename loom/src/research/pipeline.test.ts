@@ -418,6 +418,35 @@ describe("runResearch — extract cache key uniqueness", () => {
   });
 });
 
+describe("deepenResearch — extends the dataset in place", () => {
+  it("keeps the same dataset id so components bound to it update without a re-render", async () => {
+    const url = "https://deepen-inplace.test/page";
+    const fetchMock = vi.fn(async (u: unknown): Promise<Response> => {
+      const s = String(u);
+      if (s.includes("/web/extract")) {
+        return jsonResponse({ status: "ok", data: { records: [{ price: 40, name: "Original" }] } });
+      }
+      if (s.includes("/web/scrape/markdown")) {
+        return jsonResponse({ success: true, markdown: "# prose only" });
+      }
+      return jsonResponse({ message: "no brand" }, 400);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const initial = await runResearch({ question: "q", seedUrls: [url], fields: priceAndName });
+
+    const deepened = await deepenResearch({ datasetId: initial.datasetId, angle: "another angle" });
+
+    // Same id: whatever is on the canvas showing this dataset sees the new rows
+    // immediately. A fresh id would leave the visible components pointing at stale
+    // data until a full re-render replaced them.
+    expect(deepened.datasetId).toBe(initial.datasetId);
+    const dataset = getDataset(initial.datasetId)!;
+    expect(dataset.records.length).toBeGreaterThanOrEqual(2);
+    expect(dataset.question).toBe("q");
+  });
+});
+
 describe("deepenResearch — preserves prior source success", () => {
   it("does not flip an already-successful source to failed when its deepen re-fetch fails", async () => {
     const url = "https://deepen-preserve.test/page";

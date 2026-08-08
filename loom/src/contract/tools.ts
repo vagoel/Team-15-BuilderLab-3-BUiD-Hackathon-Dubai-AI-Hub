@@ -55,6 +55,14 @@ export const ResearchParams = z.object({
       "The columns you want extracted from every page. You are designing the schema — " +
         "choose fields that make the answer comparable across sources.",
     ),
+  mode: z
+    .enum(["replace", "add"])
+    .optional()
+    .describe(
+      "replace (the default) clears the canvas and shows this research on its own. " +
+        "Use add when the user wants this alongside what is already there — " +
+        "'also research X', 'add that to the report', 'combine these'.",
+    ),
 });
 
 export const DeepenParams = z.object({
@@ -240,7 +248,8 @@ export const TOOLS = {
     kind: "client",
     description:
       "Read the live web to answer a research question. Returns a dataset id plus a short " +
-      "summary — never the full data. Follow this with render_ui to show the results.",
+      "summary — never the full data. A dashboard is mounted automatically when it " +
+      "finishes; pass mode 'add' to join the existing report instead of replacing it.",
     params: ResearchParams,
     preToolSpeech: "Let me go and read up on that.",
   }),
@@ -249,7 +258,8 @@ export const TOOLS = {
     name: "deepen",
     kind: "client",
     description:
-      "Extend an existing dataset with an additional angle, reusing what was already read.",
+      "Extend an existing dataset with an additional angle, reusing what was already read. " +
+      "New rows flow into the components already showing that dataset — no re-render needed.",
     params: DeepenParams,
     preToolSpeech: "Adding that in now.",
   }),
