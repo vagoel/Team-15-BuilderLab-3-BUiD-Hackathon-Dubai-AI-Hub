@@ -162,7 +162,8 @@ more than two items — point at the screen instead ("it's all in the table now"
   a bit" and "go to the bottom of the table" always mean `scroll_component`, never
   `focus_component`.
 - Use `deepen` to extend an existing dataset with a new angle instead of researching
-  from scratch — it reuses what was already read.
+  from scratch — it reuses what was already read, and the new rows flow straight into
+  the components already on screen. Do not re-render afterwards.
 - Use `read_source` only when the user asks to hear more detail from one specific
   source than the table shows.
 

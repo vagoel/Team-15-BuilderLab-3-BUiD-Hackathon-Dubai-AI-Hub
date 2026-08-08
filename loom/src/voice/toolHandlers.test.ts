@@ -116,6 +116,85 @@ describe("createToolHandlers", () => {
     await expect(handlers.get_ui_state!(undefined)).resolves.not.toBeUndefined();
   });
 
+  it("research with mode add joins the existing report instead of replacing it", async () => {
+    const research = await import("../research/index.js");
+    const first = makeDataset("ds_first");
+    useLoom.getState().addDataset(first);
+    useLoom.getState().setSpec({
+      title: first.question,
+      layout: "grid",
+      components: [
+        { id: "auto_table", type: "comparison_table", datasetId: "ds_first", columns: ["price"], filters: [], highlights: [] },
+      ],
+    });
+
+    const second = makeDataset("ds_second");
+    vi.mocked(research.runResearch).mockResolvedValue({
+      datasetId: "ds_second",
+      headline: "h",
+      keyFindings: [],
+      sourceCount: 0,
+      recordCount: 3,
+      availableFields: [],
+    });
+    vi.mocked(research.getDataset).mockReturnValue(second);
+
+    const handlers = createToolHandlers();
+    const result = await handlers.research!({
+      question: "q2",
+      seedUrls: ["https://x.test"],
+      fields: [
+        { key: "price", label: "Price", type: "number" },
+        { key: "name", label: "Name", type: "string" },
+      ],
+      mode: "add",
+    });
+
+    const spec = useLoom.getState().spec!;
+    // The original table survives, and the new dataset's components arrive suffixed
+    // so the two can be addressed separately.
+    expect(spec.components.some((c) => c.id === "auto_table")).toBe(true);
+    expect(spec.components.some((c) => c.id.endsWith("__second"))).toBe(true);
+    expect(result).toMatchObject({ mode: "add" });
+    expect((result as { note: string }).note).toMatch(/ADDED/);
+  });
+
+  it("research without mode still replaces the canvas", async () => {
+    const research = await import("../research/index.js");
+    useLoom.getState().addDataset(makeDataset("ds_first"));
+    useLoom.getState().setSpec({
+      layout: "grid",
+      components: [
+        { id: "auto_table", type: "comparison_table", datasetId: "ds_first", columns: ["price"], filters: [], highlights: [] },
+      ],
+    });
+
+    const second = makeDataset("ds_second");
+    vi.mocked(research.runResearch).mockResolvedValue({
+      datasetId: "ds_second",
+      headline: "h",
+      keyFindings: [],
+      sourceCount: 0,
+      recordCount: 3,
+      availableFields: [],
+    });
+    vi.mocked(research.getDataset).mockReturnValue(second);
+
+    const handlers = createToolHandlers();
+    await handlers.research!({
+      question: "q2",
+      seedUrls: ["https://x.test"],
+      fields: [
+        { key: "price", label: "Price", type: "number" },
+        { key: "name", label: "Name", type: "string" },
+      ],
+    });
+
+    const spec = useLoom.getState().spec!;
+    const datasetIds = spec.components.map((c) => ("datasetId" in c ? c.datasetId : undefined)).filter(Boolean);
+    expect(datasetIds.every((id) => id === "ds_second")).toBe(true);
+  });
+
   it("set_filter reports the new visible row count", async () => {
     useLoom.getState().addDataset(makeDataset("ds1"));
     useLoom.getState().setSpec({

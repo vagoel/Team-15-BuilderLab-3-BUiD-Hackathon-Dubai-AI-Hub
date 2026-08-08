@@ -597,15 +597,17 @@ export async function deepenResearch(params: DeepenResearchParams, hooks?: Resea
     };
   }
 
-  const newDatasetId = shortId("ds_");
+  // Deepen used to mint a fresh dataset id for the merged result. Nothing on the
+  // canvas pointed at that id, so the new rows were invisible until the agent
+  // re-rendered — which replaced the whole dashboard and made every chart remount.
+  // Updating the existing dataset in place is what "extend" should mean: components
+  // bound to this id pick the new rows up on the next render, nothing remounts, and
+  // the agent has no second id to misremember.
   const label = `Deepening: ${params.angle}`;
   const total = existing.sources.length;
 
   for (const s of existing.sources) safeHook(hooks?.onSourceFound, s);
   safeHook(hooks?.onProgress, 0, total, label);
-
-  const createdAt = new Date().toISOString();
-  useLoom.getState().addDataset({ ...existing, id: newDatasetId, headline: "Researching…", createdAt });
 
   let done = 0;
   let newRecords: DataRecord[] = [];
@@ -617,7 +619,7 @@ export async function deepenResearch(params: DeepenResearchParams, hooks?: Resea
       updatedSources[i] = result.source;
       newRecords = newRecords.concat(result.records);
       safeHook(hooks?.onProgress, done, total, label);
-      useLoom.getState().upsertDataset(newDatasetId, {
+      useLoom.getState().upsertDataset(params.datasetId, {
         sources: [...updatedSources],
         records: existing.records.concat(newRecords),
       });
@@ -632,12 +634,9 @@ export async function deepenResearch(params: DeepenResearchParams, hooks?: Resea
   const headline = generateHeadline(existing.question, mergedRecords, updatedSources, existing.fields);
 
   const finalDataset: Dataset = {
-    id: newDatasetId,
-    question: existing.question,
+    ...existing,
     headline,
-    createdAt,
     sources: updatedSources,
-    fields: existing.fields,
     records: mergedRecords,
     findings,
   };
