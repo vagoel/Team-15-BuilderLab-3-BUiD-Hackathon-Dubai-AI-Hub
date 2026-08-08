@@ -4,7 +4,7 @@
 
 - **Live app:** https://loom-beryl-theta.vercel.app/
 - **Pitch deck:** https://loom-beryl-theta.vercel.app/deck.html
-- **Demo video:** https://www.loom.com/share/669b4742206a473abb9959345921c2c4
+- **Demo video:** https://www.loom.com/share/71a648c91795474882f5c1c1c97f4b32
 
 Scry is a single-page React app with a conversational agent attached to it. You ask a
 research question out loud — or type it — and the agent searches the live web, reads
