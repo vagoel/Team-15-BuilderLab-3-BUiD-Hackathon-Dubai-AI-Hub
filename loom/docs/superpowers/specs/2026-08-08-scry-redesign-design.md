@@ -323,7 +323,7 @@ Suggested commit boundary per phase on `nimras-version-ui-fixes`.
 - `pnpm verify` after each phase; keep the schema-flatness and agent-prompt-drift tests green.
 - `pnpm preflight` still passes after rename (keys/agent/tools unaffected).
 - Manual: keyboard-only walkthrough (tab order, focus visibility, table sort, prompt buttons);
-  contrast spot-checks on both themes; reduced-motion emulation; `?demo` and `?dev` still work.
+  contrast spot-checks on both themes; reduced-motion emulation; `?dev` still works.
 - Confirm no vendor key in `dist/` after build (existing README check).
 
 ---

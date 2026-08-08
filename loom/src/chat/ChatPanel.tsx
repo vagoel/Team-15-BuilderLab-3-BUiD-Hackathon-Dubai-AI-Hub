@@ -89,7 +89,13 @@ export function ChatPanel() {
       </div>
 
       <div className="chat-foot">
+        {/*
+          Typing is hidden, not deleted. This is a voice product and the text row read
+          as the primary way in; the form, its submit path and the queued-prompt plumbing
+          all still work, so restoring it is a matter of dropping the `hidden` attribute.
+        */}
         <form
+          hidden
           className="chat-input-row"
           onSubmit={(e) => {
             e.preventDefault();
@@ -303,6 +309,11 @@ const chatLocalStyles = `
 .chat-input-row {
   display: flex;
   gap: 6px;
+}
+/* The flex rule above outranks the UA stylesheet's display:none for the hidden
+   attribute, so hiding the typing row needs this to actually take effect. */
+.chat-input-row[hidden] {
+  display: none;
 }
 .chat-input {
   flex: 1;

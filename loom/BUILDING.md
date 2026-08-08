@@ -91,9 +91,10 @@ stage, because nobody can tell.
 
 ## What I would do differently
 
-- **Build mock mode on day one, not day two.** Extraction costs credits and takes 22s
-  a page. Being able to put 100 real-shaped rows on screen in a second is what makes
-  the UI buildable at all.
+- **Build the seeded dev harness on day one, not day two.** Extraction costs credits and
+  takes 22s a page. Being able to put 100 real-shaped rows on screen in a second is what
+  makes the UI buildable at all — as a local fixture behind `?dev`, never as something
+  the agent itself can reach for.
 - **Add jsdom immediately.** The two worst bugs found were React lifecycle bugs in the
   voice hook — a dead session reference that made the mic button a permanent no-op
   after any disconnect, and a Stop press swallowed mid-connect. Neither was testable
