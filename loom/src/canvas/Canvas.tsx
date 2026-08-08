@@ -46,7 +46,7 @@ export function Canvas() {
           <div className="empty">
             <h2>Say it, watch it take shape.</h2>
             <p>
-              Ask a research question out loud or type it. Scry reads live web pages, pulls out the
+              Ask a research question out loud. Scry reads live web pages, pulls out the
               numbers, and builds a dashboard here while it talks you through what it finds.
             </p>
             <p className="empty-hint">Press Start in the left rail to talk, or try one of these:</p>

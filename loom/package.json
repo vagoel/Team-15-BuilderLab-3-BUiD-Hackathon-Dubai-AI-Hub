@@ -20,9 +20,12 @@
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@tanstack/react-table": "^9.0.0",
     "@tanstack/react-virtual": "^3.14.9",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-grid-layout": "^2.2.4",
+    "reveal.js": "^6.0.1",
     "zod": "^4.0.5",
     "zustand": "^5.0.3"
   },

@@ -123,8 +123,6 @@ here plus a webhook URL — nothing else in the app knows the difference.
 - `deepen(datasetId, angle)` → new dataset extending the old one
 - `read_source(sourceId)` → clean text of a single source, truncated before it reaches the model
 
-- `mock_data(table, rows?)` → a pre-researched or generated table, costing no credits
-
 **UI tools** — the agent's hands on the page:
 
 - `render_ui(datasetId, components[])` → replace the dashboard. Flat by design (§9)
@@ -198,7 +196,7 @@ actually did to us. Keeping both is more useful than quietly rewriting the forec
 | Voice/UI state divergence | **Held.** `get_ui_state` and the table read the same filter logic. The one place it nearly broke was sorting, fixed by making header clicks write the same state the voice tool writes |
 | Vendor key leaking into the browser | **Held.** Verified against a real production build; the only credential-shaped string in `dist/` is the public agent id |
 | context.dev search endpoint 403s | **Held.** Never depended on it; the agent supplies seed URLs |
-| Venue wifi | Untested. The cache and the mock path both survive a dead network, but a cold research call will not |
+| Venue wifi | Untested. The warm cache survives a dead network, but a cold research call will not |
 
 ### What actually bit us, that we had not predicted
 

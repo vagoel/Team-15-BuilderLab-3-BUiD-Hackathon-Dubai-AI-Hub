@@ -34,6 +34,14 @@ export default defineConfig(() => {
 
   return {
     plugins: [react()],
+    build: {
+      rollupOptions: {
+        input: {
+          main: resolve(import.meta.dirname, "index.html"),
+          deck: resolve(import.meta.dirname, "deck.html"),
+        },
+      },
+    },
     server: {
       port: 5173,
       proxy: {
