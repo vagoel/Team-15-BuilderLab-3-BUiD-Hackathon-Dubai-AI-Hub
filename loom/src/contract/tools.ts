@@ -205,8 +205,7 @@ export const ResizeComponentParams = z.object({
     .optional()
     .describe(
       "How wide the card should be: small is a third of the row, medium is half, " +
-        "large is two thirds, full is the whole row. Applies in grid and focus " +
-        "layouts; masonry columns have a fixed width.",
+        "large is two thirds, full is the whole row.",
     ),
   height: z
     .enum(["short", "medium", "tall"])

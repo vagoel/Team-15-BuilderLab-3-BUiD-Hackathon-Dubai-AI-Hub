@@ -165,13 +165,6 @@ button {
   color: var(--dim);
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-
 .stack {
   display: flex;
   flex-direction: column;
@@ -204,41 +197,31 @@ button {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
-/* Focus: one primary artifact large, the rest in a quiet rail beside it. */
-.focus-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-
-.focus-main {
+/* react-grid-layout host. The library positions items absolutely inside this. */
+.dash {
   min-width: 0;
 }
 
-.focus-rail {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.dash-cell {
   min-width: 0;
+}
+
+/* Ghost shown while dragging/resizing, in our accent rather than RGL's red. */
+.react-grid-item.react-grid-placeholder {
+  background: var(--accent-soft);
+  border: 1px dashed var(--accent);
+  border-radius: var(--r);
+  opacity: 1;
+}
+
+/* Recolour RGL's little corner chevron to match the theme. */
+.react-grid-item > .react-resizable-handle::after {
+  border-color: var(--dim);
 }
 
 @media (max-width: 1100px) {
   .canvas {
     padding: 24px 20px 48px;
-  }
-
-  .grid {
-    grid-template-columns: 1fr;
-  }
-
-  /* !important so a voice/drag-set span (inline style) also collapses on small screens. */
-  .grid > .card {
-    grid-column: 1 / -1 !important;
-  }
-
-  .focus-layout {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -257,12 +240,13 @@ button {
   animation: rise 0.32s ease both;
 }
 
-/* An explicit height (drag or resize_component) — the content flexes to fill it. */
-.card-sized {
+/* Inside the grid the cell owns the size; the card fills it and its content flexes. */
+.card-fill {
+  height: 100%;
   overflow: hidden;
 }
 
-.card-sized .chart-shell {
+.card-fill .chart-shell {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -270,60 +254,45 @@ button {
 
 /* !important: the svg and the table's scroll box carry inline sizing of their own
    (height: auto / max-height: 420px) that must yield once the card owns the height. */
-.card-sized .chart-shell svg {
+.card-fill .chart-shell svg {
   height: 100% !important;
   width: 100%;
   max-height: none;
 }
 
-.card-sized .table-root {
+.card-fill .table-root {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-.card-sized .table-scroll {
+.card-fill .table-scroll {
   max-height: none !important;
   flex: 1;
   min-height: 0;
 }
 
-/* Mid-drag: kill transitions so the card tracks the pointer without lag. */
-.card.resizing {
-  transition: none;
-  animation: none;
-  user-select: none;
-}
-
-.resize-handle {
+.drag-grip {
   position: absolute;
-  right: 3px;
-  bottom: 3px;
-  width: 16px;
-  height: 16px;
-  cursor: nwse-resize;
-  touch-action: none;
+  top: 8px;
+  right: 10px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--dim);
+  cursor: grab;
+  user-select: none;
   opacity: 0;
   transition: opacity 0.15s;
-  background: linear-gradient(
-    135deg,
-    transparent 0 50%,
-    var(--scroll-thumb) 50% 58%,
-    transparent 58% 70%,
-    var(--scroll-thumb) 70% 78%,
-    transparent 78%
-  );
-  border-bottom-right-radius: var(--r);
+  z-index: 3;
 }
 
-.card:hover .resize-handle {
-  opacity: 0.7;
+.card:hover .drag-grip {
+  opacity: 0.8;
 }
 
-.resize-handle:hover,
-.card.resizing .resize-handle {
-  opacity: 1;
+.drag-grip:active {
+  cursor: grabbing;
 }
 
 .card.focused {
@@ -362,13 +331,6 @@ button {
   font-size: 11px;
   margin-bottom: 10px;
 }
-
-.span-12 { grid-column: span 12; }
-.span-8 { grid-column: span 8; }
-.span-7 { grid-column: span 7; }
-.span-6 { grid-column: span 6; }
-.span-5 { grid-column: span 5; }
-.span-4 { grid-column: span 4; }
 
 /* Caps the chart's plot area so four bars don't render at 500px tall — the SVG keeps
    its own aspect ratio (preserveAspectRatio defaults to "meet"), it just stops growing. */

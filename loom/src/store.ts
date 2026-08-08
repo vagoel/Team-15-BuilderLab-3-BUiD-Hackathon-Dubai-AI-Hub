@@ -63,6 +63,7 @@ interface LoomState {
   setFilter: (componentId: string, filters: Filter[]) => boolean;
   setLayout: (layout: LayoutKind) => boolean;
   resizeComponent: (id: string, size: ComponentSize) => boolean;
+  reorderComponents: (ids: string[]) => boolean;
   focusComponent: (id: string) => boolean;
   getUiState: () => UiState;
 
@@ -213,6 +214,26 @@ export const useLoom = create<LoomState>((set, get) => ({
       }));
     }
     return hit;
+  },
+
+  /**
+   * Reorder to match `ids` (a drag-to-move gesture, sorted by where the cards
+   * landed). Components missing from `ids` keep their spot at the end; a no-op
+   * order writes no history entry, so an aborted drag costs nothing to undo.
+   */
+  reorderComponents: (ids) => {
+    const spec = get().spec;
+    if (!spec) return false;
+    const rank = new Map(ids.map((id, i) => [id, i]));
+    const components = [...spec.components].sort(
+      (a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+    );
+    if (components.every((c, i) => c.id === spec.components[i]?.id)) return true;
+    set((s) => ({
+      spec: { ...spec, components },
+      history: [...s.history, spec].slice(-HISTORY_LIMIT),
+    }));
+    return true;
   },
 
   focusComponent: (id) => {

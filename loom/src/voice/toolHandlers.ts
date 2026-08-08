@@ -908,13 +908,9 @@ async function handleResizeComponent(raw: unknown): Promise<unknown> {
   const ok = useLoom.getState().resizeComponent(id, size);
   if (!ok) return errorMessage("resize_component", `no component with id ${id}`);
 
-  const layout = useLoom.getState().spec?.layout;
   const parts = [width && `${width} wide`, height && `${height}`].filter(Boolean);
   toolMessage(`resize_component → ${id} (${parts.join(", ")})`);
-  return (
-    `Resized ${id} to ${parts.join(" and ")}.` +
-    (width && layout === "masonry" ? " Width shows in the grid and focus layouts — masonry columns are fixed-width." : "")
-  );
+  return `Resized ${id} to ${parts.join(" and ")}.`;
 }
 
 async function handleFocusComponent(raw: unknown): Promise<unknown> {
