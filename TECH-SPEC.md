@@ -105,10 +105,12 @@ speech out, the platform features this build actually depends on:
 - **Server-side agent config as code**: `scripts/sync-agent.ts` pushes the prompt, the
   tool set (replaced wholesale, so a renamed tool cannot linger and 404 mid-demo),
   `temperature: 0.3`, `response_timeout_secs` of 120 for retrieval and 30 for
-  everything else, `first_message`, and `enable_auth: false`. The reasoning model is
-  pinned to `claude-opus-4-8`; a smaller model could not hold the tool contract and
-  looped on invalid calls. Voice/TTS settings are configured in the ElevenLabs
-  dashboard and are not in this repo.
+  everything else, `first_message`, and `enable_auth: false`. The agent's reasoning
+  model is pinned there too (the `llm` field in the config PATCH) rather than left on
+  a dashboard default — a small fast model could not hold a 24-tool contract and
+  looped on invalid calls, and the comment above that line records which one and why.
+  Voice/TTS settings are configured in the ElevenLabs dashboard and are not in this
+  repo.
 
 Personality is prompt design, not a persona blurb: never answer from memory, never say
 you cannot access current information, never read numbers like a machine ("just under
@@ -209,9 +211,10 @@ What v2 looks like, in the order it would be worth building:
    re-read on demand, and diff: "three of these prices moved since you asked." That is
    a genuinely new server feature, not a relabelling of the current request-time
    pipeline, and it is the honest way to answer "what if the data changes mid-conversation".
-4. **Field-level provenance.** Every cell already knows its `_source`; surfacing it as
-   click-to-see-the-row-on-the-page, with the parsed table highlighted, would close the
-   loop between "the dashboard says X" and "here is where X was printed".
+4. **Field-level provenance.** Every row already carries the `_source` it was parsed
+   from; pushing that down to the cell and surfacing it as
+   click-to-see-it-on-the-page would close the loop between "the dashboard says X" and
+   "here is where X was printed".
 5. **More bounded components** — maps, timelines, diff views — added to the frozen
    registry, never arbitrary model-authored markup.
 6. **Multi-user hardening**: accounts, per-key quotas, observability on tool-call

@@ -130,7 +130,7 @@ ElevenLabs dashboard; they are not in this repo.
   `npm install -g pnpm@9.15.9`.
 - A Chromium-based browser (Chrome or Edge) for the microphone. Safari works too.
   The mic needs a secure context — use `http://localhost:5173`, not a LAN IP.
-- An **ElevenLabs** account with an API key and conversational-AI quota.
+- An **ElevenLabs** account with an API key and remaining agent character quota.
 - A **context.dev** account with an API key and credits.
 
 ### 1. Install

@@ -70,7 +70,7 @@ export function ChatPanel() {
 
       <div className="chat-scroll scroll" ref={scrollRef}>
         {messages.length === 0 && (
-          <p className="chat-empty">Say what you want to research, or type it below.</p>
+          <p className="chat-empty">Press Start, then say what you want to research.</p>
         )}
         {messages.map((m) => (
           <div key={m.id} className={`chat-line chat-line--${m.role}${m.kind ? ` chat-line--${m.kind}` : ""}`}>
