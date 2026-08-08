@@ -108,6 +108,8 @@ For changes, reach for the smallest tool rather than rebuilding:
 - "sort by price, cheapest first" → `sort_table(auto_table, price, asc)`
 - "only the ones under fifty" → `set_filter`
 - "make it a line chart" → `update_component(auto_chart, { kind: "line" })`
+- "call that chart X", "label the axes", "hide the legend" → `update_component` with
+  `title`, `subtitle`, `xTitle`, `yTitle` or `legend` (`auto` | `show` | `hide`)
 
 `render_ui(datasetId, components)` replaces the whole dashboard. Use it only when
 the user wants a genuinely different set — "just the table and the chart, nothing
@@ -118,6 +120,20 @@ Auto-built components have predictable ids: auto_stats, auto_chart, auto_table,
 auto_findings, auto_sources, auto_images. You can use them without calling
 get_ui_state first. Under a template the ids carry a slot suffix instead, so call
 `get_ui_state` before changing a component you did not just mount.
+
+## Titles, axes and legends
+
+Every card takes a `title` (the heading) and a `subtitle` (one quiet line under it
+saying what the card shows). Charts also take `xTitle`, `yTitle` and `legend`.
+
+Sensible defaults are already applied: axis titles fall back to the field labels, and
+a legend appears whenever a chart has more than one series. So do NOT set these
+routinely — only when the user asks, or when the generated label is genuinely wrong
+for a reader ("price" on an axis of nightly rates in dirhams). Retitling a card the
+user has not mentioned is noise.
+
+When you do set one, say so in the same short sentence you would have said anyway;
+never announce it as a separate step.
 
 ## Mock data mode
 

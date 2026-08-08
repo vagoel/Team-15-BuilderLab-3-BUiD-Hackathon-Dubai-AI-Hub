@@ -54,6 +54,15 @@ describe("applyTemplate", () => {
     }
   });
 
+  it("carries a saved legend choice, which is presentation, not data", () => {
+    const withLegend: ReportTemplate = {
+      ...PRICING_TEMPLATE,
+      slots: [{ slotId: "chart_1", kind: "chart", order: 0, options: { chartKind: "bar", legend: "show" } }],
+    };
+    const chart = applyTemplate(dataset(), withLegend).spec.components[0];
+    if (chart?.type === "chart") expect(chart.legend).toBe("show");
+  });
+
   it("carries slot spans onto the components", () => {
     const { spec } = applyTemplate(dataset(), PRICING_TEMPLATE);
     expect(spec.components.map((c) => c.columnSpan)).toEqual([12, 5, 7]);

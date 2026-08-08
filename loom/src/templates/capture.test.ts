@@ -63,6 +63,25 @@ describe("captureTemplate", () => {
     expect(JSON.stringify(chart)).not.toContain("vendor");
   });
 
+  it("keeps a legend choice but never the axis titles, which name fields", () => {
+    const withAxes: UiSpec = {
+      ...PRICING_REPORT,
+      components: [
+        {
+          ...(PRICING_REPORT.components[1] as Extract<UiSpec["components"][number], { type: "chart" }>),
+          legend: "show",
+          xTitle: "Vendor",
+          yTitle: "Price in USD",
+        },
+      ],
+    };
+    const slot = captureTemplate(withAxes, "L").slots[0]!;
+
+    expect(slot.options?.legend).toBe("show");
+    expect(JSON.stringify(slot)).not.toContain("Price in USD");
+    expect(JSON.stringify(slot)).not.toContain("Vendor");
+  });
+
   it("keeps how many table columns there were, never which ones", () => {
     const template = captureTemplate(PRICING_REPORT, "L");
     const table = template.slots.find((s) => s.kind === "comparison_table")!;

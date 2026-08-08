@@ -143,8 +143,18 @@ export const UpdateComponentParams = z.object({
         .optional()
         .describe("Chart type. This is how you turn a bar chart into a pie."),
       title: z.string().optional().describe("New heading for the component."),
+      subtitle: z
+        .string()
+        .optional()
+        .describe("One quiet line under the heading saying what this card shows, e.g. 'Nightly rates, October'."),
       x: z.string().optional().describe("Chart only: the field key to group by."),
       y: z.array(z.string()).optional().describe("Chart only: the numeric field keys to plot."),
+      xTitle: z.string().optional().describe("Chart only: label under the horizontal axis."),
+      yTitle: z.string().optional().describe("Chart only: label beside the vertical axis."),
+      legend: z
+        .enum(["auto", "show", "hide"])
+        .optional()
+        .describe("Chart only: auto shows a legend when there is more than one series."),
       columns: z.array(z.string()).optional().describe("Table only: which columns to show."),
     })
     .describe("What to change. Set only the keys you are changing, e.g. { kind: 'pie' }."),

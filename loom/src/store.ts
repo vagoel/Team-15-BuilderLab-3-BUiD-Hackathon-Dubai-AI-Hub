@@ -203,6 +203,7 @@ export const useLoom = create<LoomState>((set, get) => ({
           id: c.id,
           type: c.type,
           title: c.title,
+          subtitle: c.subtitle,
           datasetId,
           filters,
           visibleRows: hasRows && datasetId ? applyFilters(records, filters ?? []).length : undefined,

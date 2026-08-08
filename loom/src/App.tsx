@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { Canvas } from "./canvas/Canvas.js";
 import { ChatPanel } from "./chat/ChatPanel.js";
 import { DevRail } from "./dev/DevRail.js";
+import { TemplateRail } from "./templates/TemplateRail.js";
 import { useLoom } from "./store.js";
 import { createToolHandlers } from "./voice/toolHandlers.js";
 
 /**
- * App-in-app: a narrow conversation rail on the left, and the research canvas —
- * the actual product — taking the rest. The canvas is what the agent builds.
+ * App-in-app: a collapsed template rail, a narrow conversation rail, and the
+ * research canvas — the actual product — taking the rest. The canvas is what the
+ * agent builds.
  *
  * The dev rail swaps in for the chat rail and drives the same store actions by
  * button, so the canvas can be worked on without spending a research call. Open it
@@ -19,6 +21,7 @@ export function App() {
 
   return (
     <div className="app">
+      <TemplateRail />
       {dev ? <DevRail onClose={() => setDev(false)} /> : <ChatPanel />}
       <Canvas />
       {!dev && (

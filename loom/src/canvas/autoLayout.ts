@@ -149,6 +149,17 @@ function build(dataset: Dataset, kind: ComponentKind): UiComponentSpec | undefin
         title: "What stood out",
         datasetId: dataset.id,
       };
+
+    case "image_gallery":
+      // Only offered when images were actually collected. An empty gallery is a
+      // card that says nothing, which is worse than one fewer card.
+      if (!dataset.images?.length) return undefined;
+      return {
+        id: "auto_images",
+        type: "image_gallery",
+        title: "Images",
+        datasetId: dataset.id,
+      };
   }
 }
 
@@ -197,7 +208,26 @@ export function buildLayout(
   };
 }
 
-/** What gets mounted automatically when research finishes. */
+/**
+ * What gets mounted automatically when research finishes.
+ *
+ * The set is derived from what the run actually produced rather than fixed, because
+ * raw research produces genuinely different shapes: a table-heavy page gives rows,
+ * charts and stats; a prose page gives findings and sources and nothing else; an
+ * image run gives a gallery. `buildLayout` drops anything it cannot build, so listing
+ * a kind here is a request, not a promise — but asking for a chart over a dataset
+ * with no rows just wastes a slot, and ordering matters to the reader.
+ */
 export function defaultLayout(dataset: Dataset): UiSpec {
-  return buildLayout(dataset, ["stat_cards", "chart", "comparison_table", "findings", "source_list"]);
+  const hasRows = dataset.records.length > 0;
+  const hasImages = (dataset.images?.length ?? 0) > 0;
+
+  const kinds: ComponentKind[] = hasRows
+    ? ["stat_cards", "chart", "comparison_table", "findings", "source_list"]
+    : // No rows: lead with what was actually read instead of a stat card counting to zero.
+      ["findings", "source_list"];
+
+  if (hasImages) kinds.splice(hasRows ? 3 : 0, 0, "image_gallery");
+
+  return buildLayout(dataset, kinds);
 }

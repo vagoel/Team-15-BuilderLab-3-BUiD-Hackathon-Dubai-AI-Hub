@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Conversation } from "@elevenlabs/client";
 import type { Role } from "@elevenlabs/client";
 import { useLoom } from "../store.js";
+import { useTemplates } from "../templates/templateStore.js";
+import { serializeTemplateContext } from "../contract/template.js";
 import { createToolHandlers } from "./toolHandlers.js";
 
 declare const __AGENT_ID__: string;
@@ -122,6 +124,9 @@ export function useVoiceSession(): UseVoiceSession {
     // pressed and leaving a live mic session the user believed they had ended.
     sessionEpochRef.current++;
     stopLevelLoop();
+    // stop() bumps the epoch, which makes onDisconnect return early — so unpin here
+    // too, or an explicitly ended session would leave the rail locked forever.
+    useTemplates.getState().unpinTemplate();
     const convo = conversationRef.current;
     conversationRef.current = null;
     if (convo) {
@@ -155,6 +160,7 @@ export function useVoiceSession(): UseVoiceSession {
         "No ElevenLabs agent configured. Set ELEVENLABS_AGENT_ID in the workspace .env " +
           "(next to this app's package.json or one level up) and restart the dev server.",
       );
+      useTemplates.getState().unpinTemplate();
       setStatus("error");
       return;
     }
@@ -164,6 +170,12 @@ export function useVoiceSession(): UseVoiceSession {
     setError(null);
     setStatus("connecting");
     useLoom.getState().setStatus("connecting");
+
+    // Freeze the selected template for the whole session. The same snapshot is
+    // described to the agent below and used by the renderer (see
+    // `mountDataset`), so the agent's instructions and the canvas cannot drift
+    // apart mid-conversation. The rail disables selection until disconnect.
+    const pinned = useTemplates.getState().pinTemplate();
 
 
     try {
@@ -184,6 +196,11 @@ export function useVoiceSession(): UseVoiceSession {
         agentId: __AGENT_ID__,
         connectionType,
         clientTools: createToolHandlers(),
+        // Dynamic variables rather than a prompt override: this is a PUBLIC agent,
+        // and enabling full prompt overrides on one would let any browser rewrite
+        // its instructions. The prompt carries {{report_template_context}} and this
+        // fills it in — "NONE" when nothing is selected.
+        dynamicVariables: { report_template_context: serializeTemplateContext(pinned) },
         onConnect: () => {
           if (!mountedRef.current) return;
           setStatus("connected");
@@ -203,6 +220,9 @@ export function useVoiceSession(): UseVoiceSession {
           // conversation that will never answer again.
           conversationRef.current = null;
           stopLevelLoop();
+          // Session over: the template is no longer pinned, so the rail unlocks and
+          // the next session can start from a different selection.
+          useTemplates.getState().unpinTemplate();
           if (!mountedRef.current) return;
           setStatus("idle");
           setIsSpeaking(false);
@@ -221,7 +241,8 @@ export function useVoiceSession(): UseVoiceSession {
           stopLevelLoop();
           if (!mountedRef.current) return;
           setError(message);
-          setStatus("error");
+          useTemplates.getState().unpinTemplate();
+      setStatus("error");
           useLoom.getState().setError(message);
         },
         onModeChange: ({ mode }) => {
@@ -250,6 +271,7 @@ export function useVoiceSession(): UseVoiceSession {
 
       const message = explainStartFailure(err);
       setError(message);
+      useTemplates.getState().unpinTemplate();
       setStatus("error");
       useLoom.getState().setError(message);
     } finally {

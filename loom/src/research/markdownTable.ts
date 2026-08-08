@@ -1,4 +1,4 @@
-import type { DataRecord, FieldSpec } from "../contract/dataset.js";
+import type { DataRecord, FieldSpec, FieldType } from "../contract/dataset.js";
 
 /**
  * Records straight out of raw scraped markdown, by parsing its tables.
@@ -11,9 +11,9 @@ import type { DataRecord, FieldSpec } from "../contract/dataset.js";
  * data is already tabular, parsing the raw markdown is both exhaustive and about
  * thirty times faster (~1s vs the ~22s extract budget).
  *
- * So: this path handles pages whose data is *in a table*, and extract stays the
- * fallback for prose pages where there is nothing to parse. See pipeline.ts for
- * the ordering.
+ * So extract was removed outright. This is now the ONLY way a report gains rows:
+ * a table the page actually printed. A prose page yields no rows at all — it
+ * contributes sources and cited findings instead. See pipeline.ts.
  */
 
 /** One GFM pipe table. Cells are raw markdown — callers clean per field type. */
@@ -378,4 +378,112 @@ export function recordsFromMarkdown(markdown: string, fields: FieldSpec[]): Data
     }
   }
   return records;
+}
+
+// ---------------------------------------------------------------------------
+// Schema inference
+//
+// With `/web/extract` gone, nobody hands us a field schema any more — the agent
+// picks pages, not columns. So the table's own headers become the schema, and the
+// column values decide each field's type. This is the only way rows are ever
+// created: a header the page actually printed, over values the page actually held.
+// ---------------------------------------------------------------------------
+
+/** Header text -> a snake_case key safe to use as a field key and a React key. */
+function toFieldKey(header: string, index: number): string {
+  const key = normalize(header).replace(/\s+/g, "_").slice(0, 40);
+  return key || `column_${index + 1}`;
+}
+
+const CURRENCY_HINT = /[$€£¥₹]|\b(aed|usd|eur|gbp|inr|sar|price|cost|fee|salary|revenue)\b/i;
+const DATE_LIKE = /^(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}|[A-Z][a-z]+ \d{1,2},? \d{4})$/;
+
+/**
+ * Decide a column's type from what is actually in it.
+ *
+ * Majority rules rather than first-value-wins: a price column with one "N/A" in it
+ * is still a price column, and typing it as a string would cost every chart and
+ * every min/max stat that column could have produced.
+ */
+function inferFieldType(header: string, values: string[]): FieldType {
+  const filled = values.filter((v) => v.length > 0);
+  if (filled.length === 0) return "string";
+
+  const share = (pred: (v: string) => boolean) => filled.filter(pred).length / filled.length;
+
+  if (share((v) => /^https?:\/\//.test(v)) > 0.5) return "url";
+  if (share((v) => DATE_LIKE.test(v)) > 0.5) return "date";
+
+  const numericish = share((v) => /^[$€£¥₹]?\s?-?[0-9][0-9,]*(\.[0-9]+)?\s*[kKmM]?$/.test(v));
+  if (numericish > 0.6) {
+    return CURRENCY_HINT.test(header) || share((v) => /[$€£¥₹]/.test(v)) > 0.3 ? "currency" : "number";
+  }
+  return "string";
+}
+
+export interface InferredTable {
+  fields: FieldSpec[];
+  records: DataRecord[];
+}
+
+/**
+ * Read a page's biggest genuine table as a dataset.
+ *
+ * Returns `undefined` when the page has no table worth the name — prose pages must
+ * produce zero rows, never a plausible-looking row assembled out of nothing. That
+ * is the honesty boundary the whole raw pipeline rests on.
+ */
+export function inferTableFromMarkdown(markdown: string): InferredTable | undefined {
+  const tables = parseMarkdownTables(markdown);
+  if (tables.length === 0) return undefined;
+
+  // Same grouping rule as recordsFromMarkdown: identical headers are one logical
+  // table split for presentation (Wikipedia does this per decade), and the group is
+  // the difference between 40 rows and 487.
+  const groups = new Map<string, MarkdownTable[]>();
+  for (const table of tables) {
+    const sig = signatureOf(table);
+    const group = groups.get(sig);
+    if (group) group.push(table);
+    else groups.set(sig, [table]);
+  }
+
+  let best: MarkdownTable[] | undefined;
+  let bestRows = 0;
+  for (const group of groups.values()) {
+    const first = group[0];
+    if (!first || first.headers.length < 2) continue;
+    // A two-column key/value block is an infobox, not a dataset. Require enough
+    // rows that the thing is recognisably a list.
+    const rows = group.reduce((n, t) => n + t.rows.length, 0);
+    if (rows < 2) continue;
+    if (rows > bestRows) {
+      best = group;
+      bestRows = rows;
+    }
+  }
+  if (!best) return undefined;
+
+  const headers = best[0]!.headers;
+  const allRows = best.flatMap((t) => t.rows);
+
+  const seen = new Set<string>();
+  const fields: FieldSpec[] = headers.map((header, i) => {
+    let key = toFieldKey(header, i);
+    while (seen.has(key)) key = `${key}_${i}`;
+    seen.add(key);
+    const column = allRows.map((row) => cleanCell(row[i] ?? ""));
+    return { key, label: header || `Column ${i + 1}`, type: inferFieldType(header, column) };
+  });
+
+  const records: DataRecord[] = [];
+  for (const row of allRows) {
+    const record: DataRecord = {};
+    fields.forEach((field, i) => {
+      record[field.key] = coerce(row[i] ?? "", field);
+    });
+    if (Object.values(record).some((v) => v !== null)) records.push(record);
+  }
+
+  return records.length ? { fields, records } : undefined;
 }

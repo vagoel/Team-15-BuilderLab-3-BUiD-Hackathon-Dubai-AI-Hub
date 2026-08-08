@@ -36,6 +36,7 @@
   --series-8: #9a7b06;
   --r: 10px;
   --chat-w: 340px;
+  --rail-w: 210px;
   color-scheme: light;
 }
 
@@ -124,10 +125,81 @@ button {
 
 /* ---------- app shell ---------- */
 
+/* Template rail, conversation rail, canvas. The first column is a collapsed strip
+   until the user opens it, so the canvas keeps essentially all of its width. */
 .app {
   display: grid;
-  grid-template-columns: var(--chat-w) 1fr;
+  grid-template-columns: auto var(--chat-w) 1fr;
   height: 100%;
+}
+
+.rail {
+  width: var(--rail-w);
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.rail--collapsed {
+  width: 44px;
+  align-items: center;
+  padding-top: 14px;
+  gap: 8px;
+}
+
+.rail-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  color: var(--dim);
+  transition: color 0.2s, background 0.2s;
+}
+
+.rail-toggle:hover {
+  color: var(--ink);
+  background: var(--panel-2);
+}
+
+/* Shows a template is selected while the rail is collapsed. */
+.rail-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.gallery-item {
+  min-width: 0;
+}
+
+.gallery-item img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel-2);
+  display: block;
+}
+
+.gallery-item figcaption {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat {
@@ -225,6 +297,16 @@ button {
   margin-bottom: 12px;
 }
 
+/* One quiet line under a card heading: what this card is showing, as opposed to
+   what it is. Sits above the content, below the uppercase title. */
+.card-subtitle {
+  font-size: 12.5px;
+  color: var(--dim);
+  margin-top: -6px;
+  margin-bottom: 12px;
+  line-height: 1.45;
+}
+
 /* Primary weight: the chart and table are the artifacts the page is for. */
 .card-primary {
   background: var(--panel-2);
@@ -241,12 +323,20 @@ button {
   margin-bottom: 10px;
 }
 
+/* The adaptive layout only ever uses 4/5/7/8/12, but a template can pin any width,
+   so every column count has a class. */
 .span-12 { grid-column: span 12; }
+.span-11 { grid-column: span 11; }
+.span-10 { grid-column: span 10; }
+.span-9 { grid-column: span 9; }
 .span-8 { grid-column: span 8; }
 .span-7 { grid-column: span 7; }
 .span-6 { grid-column: span 6; }
 .span-5 { grid-column: span 5; }
 .span-4 { grid-column: span 4; }
+.span-3 { grid-column: span 3; }
+.span-2 { grid-column: span 2; }
+.span-1 { grid-column: span 1; }
 
 /* Caps the chart's plot area so four bars don't render at 500px tall — the SVG keeps
    its own aspect ratio (preserveAspectRatio defaults to "meet"), it just stops growing. */

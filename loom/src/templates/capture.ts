@@ -51,7 +51,12 @@ export function captureTemplate(spec: UiSpec | null, name: string): ReportTempla
     // to. (`slot.title` stays in the schema for user-authored labels later.)
 
     if (component.type === "chart") {
-      slot.options = { chartKind: component.kind };
+      // Chart kind and legend visibility are presentation. The axes are field keys,
+      // so `xTitle`/`yTitle` and `x`/`y` stay out — they name this subject's columns.
+      slot.options = {
+        chartKind: component.kind,
+        ...(component.legend ? { legend: component.legend } : {}),
+      };
     }
     if (component.type === "comparison_table") {
       // How many columns, never which ones — column *keys* are the single most

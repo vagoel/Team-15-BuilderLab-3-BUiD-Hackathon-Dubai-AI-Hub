@@ -22,7 +22,9 @@ const COLORS = [
 ] as const;
 const WIDTH = 600;
 const HEIGHT = 260;
-const MARGIN = { top: 16, right: 16, bottom: 34, left: 48 };
+// Bottom and left carry the axis titles under/beside the tick labels, so both gain
+// room over the original 34/48. Nothing else in the chart is positioned absolutely.
+const MARGIN = { top: 16, right: 16, bottom: 52, left: 62 };
 const GRID_FRACTIONS = [0.25, 0.5, 0.75, 1];
 const EMPTY_MESSAGE = "No rows match the current filter.";
 const CHART_GROUP_CAP = 12;
@@ -40,7 +42,7 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
   const fieldLabel = (key: string) => dataset.fields.find((f) => f.key === key)?.label ?? key;
 
   if (spec.kind === "pie") {
-    return <PieChart rows={rows} xKey={spec.x} yKey={spec.y[0]} />;
+    return <PieChart spec={spec} rows={rows} xKey={spec.x} yKey={spec.y[0]} />;
   }
 
   const xValues = rows.map((r) => String(r[spec.x] ?? ""));
@@ -70,6 +72,16 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
     return <p style={{ color: "var(--dim)", fontSize: 13 }}>{EMPTY_MESSAGE}</p>;
   }
 
+  // Axis titles default to the fields' own labels: a chart nobody titled is still
+  // readable, and the explicit values exist for when the field key is not the right
+  // words for a reader.
+  const xTitle = spec.xTitle ?? fieldLabel(spec.x);
+  const yTitle = spec.yTitle ?? series.map((s) => s.label).join(" · ");
+  // A single-series bar chart is explained by its y-axis title; a one-entry legend
+  // beside it is furniture. Explicit "show"/"hide" always wins.
+  const showLegend = spec.legend === "show" || (spec.legend !== "hide" && series.length > 1);
+  const subtitle = spec.subtitle ?? caption;
+
   const rawMax = Math.max(0, ...series.flatMap((s) => s.values));
   const domainMax = niceMax(rawMax);
 
@@ -80,10 +92,10 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
 
   return (
     <div>
-      {caption && (
-        <div style={{ color: "var(--dim)", fontSize: 12, marginBottom: 8 }}>{caption}</div>
+      {subtitle && (
+        <div style={{ color: "var(--dim)", fontSize: 12, marginBottom: 8 }}>{subtitle}</div>
       )}
-      {series.length > 1 && (
+      {showLegend && (
         <div style={{ display: "flex", gap: 14, marginBottom: 10, flexWrap: "wrap" }}>
           {series.map((s, i) => (
             <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--mute)" }}>
@@ -216,6 +228,20 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
             </text>
           );
         })}
+
+        <AxisTitle
+          text={xTitle}
+          x={MARGIN.left + plotW / 2}
+          y={HEIGHT - 6}
+          max={Math.floor(plotW / 6)}
+        />
+        <AxisTitle
+          text={yTitle}
+          x={14}
+          y={MARGIN.top + plotH / 2}
+          max={Math.floor(plotH / 6)}
+          rotate
+        />
       </svg>
     </div>
   );
@@ -224,7 +250,52 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
 const PIE_MAX_SLICES = 8;
 const PIE_LABEL_MIN_FRACTION = 0.04;
 
-function PieChart({ rows, xKey, yKey }: { rows: DataRecord[]; xKey: string; yKey: string | undefined }) {
+/**
+ * One axis title. Rendered inside the SVG rather than as HTML so it scales with the
+ * chart's viewBox — an HTML label beside a chart that is 40% of its natural width
+ * ends up comically oversized.
+ */
+function AxisTitle({
+  text,
+  x,
+  y,
+  max,
+  rotate = false,
+}: {
+  text: string;
+  x: number;
+  y: number;
+  max: number;
+  rotate?: boolean;
+}) {
+  if (!text) return null;
+  return (
+    <text
+      x={x}
+      y={y}
+      textAnchor="middle"
+      dominantBaseline={rotate ? "middle" : "auto"}
+      transform={rotate ? `rotate(-90 ${x} ${y})` : undefined}
+      fontSize={10}
+      fontWeight={600}
+      fill="var(--mute)"
+    >
+      {truncateLabel(text, Math.max(8, max))}
+    </text>
+  );
+}
+
+function PieChart({
+  spec,
+  rows,
+  xKey,
+  yKey,
+}: {
+  spec: ChartSpec;
+  rows: DataRecord[];
+  xKey: string;
+  yKey: string | undefined;
+}) {
   if (!yKey) {
     return <p style={{ color: "var(--dim)", fontSize: 13 }}>{EMPTY_MESSAGE}</p>;
   }
@@ -271,8 +342,16 @@ function PieChart({ rows, xKey, yKey }: { rows: DataRecord[]; xKey: string; yKey
     return { ...g, fraction, startAngle, endAngle, color: colorAt(i) };
   });
 
+  // A pie IS its legend — the slices carry no labels of their own beyond the leader
+  // lines — so "auto" always shows it. Only an explicit "hide" takes it away.
+  const showLegend = spec.legend !== "hide";
+
   return (
     <div>
+      {spec.subtitle && (
+        <div style={{ color: "var(--dim)", fontSize: 12, marginBottom: 8 }}>{spec.subtitle}</div>
+      )}
+      {showLegend && (
       <div style={{ display: "flex", gap: 14, marginBottom: 10, flexWrap: "wrap" }}>
         {slices.map((s, i) => (
           <div
@@ -293,6 +372,7 @@ function PieChart({ rows, xKey, yKey }: { rows: DataRecord[]; xKey: string; yKey
           </div>
         ))}
       </div>
+      )}
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}

@@ -29,8 +29,34 @@ describe("tool contract", () => {
     expect(TOOLS.render_ui.waitForResponse).toBe(true);
   });
 
+  it("blocks on every step of the discovery-then-retrieval protocol", () => {
+    // Non-blocking discovery would be worse than useless: the agent would pick
+    // candidate indexes without ever seeing the candidates.
+    expect(TOOLS.search_web.waitForResponse).toBe(true);
+    expect(TOOLS.use_direct_urls.waitForResponse).toBe(true);
+    expect(TOOLS.collect_sources.waitForResponse).toBe(true);
+    expect(TOOLS.set_research_findings.waitForResponse).toBe(true);
+  });
+
   it("gives the slow tools something to say while they run", () => {
-    expect(TOOLS.research.preToolSpeech).toBeTruthy();
+    expect(TOOLS.search_web.preToolSpeech).toBeTruthy();
+    expect(TOOLS.collect_sources.preToolSpeech).toBeTruthy();
+  });
+
+  it("offers no way to hand a retrieval tool a raw URL", () => {
+    // Provenance is a protocol, not prompt advice: collect_sources takes indexes
+    // into a registered source set, so an invented URL has nowhere to enter.
+    const declared = toElevenLabsTool(TOOLS.collect_sources);
+    const props = Object.keys(("parameters" in declared ? declared.parameters.properties : {}) ?? {});
+    expect(props).toContain("sourceSetId");
+    expect(props).toContain("indexes");
+    expect(props).not.toContain("urls");
+    expect(props).not.toContain("seedUrls");
+  });
+
+  it("declares no structured-extraction tool", () => {
+    expect(Object.keys(TOOLS)).not.toContain("research");
+    expect(JSON.stringify(TOOLS)).not.toContain("web/extract");
   });
 });
 

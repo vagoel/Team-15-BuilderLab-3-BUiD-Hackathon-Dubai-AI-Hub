@@ -33,6 +33,8 @@ export const TEMPLATE_LIMITS = {
  */
 export const TemplateSlotOptions = z.object({
   chartKind: z.enum(["bar", "line", "pie"]).optional(),
+  /** Whether a chart shows its legend. A display choice, not a data one. */
+  legend: z.enum(["auto", "show", "hide"]).optional(),
   /** How many columns a table shows, not which ones. */
   maxColumns: z.number().int().min(1).max(12).optional(),
 });

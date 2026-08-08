@@ -53,6 +53,9 @@ export function applyTemplate(dataset: Dataset, template: ReportTemplate, title?
     if (slot.options?.chartKind && component.type === "chart") {
       component = { ...component, kind: slot.options.chartKind };
     }
+    if (slot.options?.legend && component.type === "chart") {
+      component = { ...component, legend: slot.options.legend };
+    }
     if (slot.options?.maxColumns && component.type === "comparison_table") {
       component = { ...component, columns: component.columns.slice(0, slot.options.maxColumns) };
     }
