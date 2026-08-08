@@ -178,6 +178,51 @@ button {
   gap: 16px;
 }
 
+/* ---------- layout presets ---------- */
+
+.layout-switch {
+  display: flex;
+  gap: 4px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px;
+  flex: none;
+}
+
+.layout-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: var(--mute);
+}
+
+.layout-pill.active {
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* Focus: one primary artifact large, the rest in a quiet rail beside it. */
+.focus-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.focus-main {
+  min-width: 0;
+}
+
+.focus-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
 @media (max-width: 1100px) {
   .canvas {
     padding: 24px 20px 48px;
@@ -187,14 +232,22 @@ button {
     grid-template-columns: 1fr;
   }
 
+  /* !important so a voice/drag-set span (inline style) also collapses on small screens. */
   .grid > .card {
-    grid-column: 1 / -1;
+    grid-column: 1 / -1 !important;
+  }
+
+  .focus-layout {
+    grid-template-columns: 1fr;
   }
 }
 
 /* ---------- cards ---------- */
 
 .card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--r);
@@ -202,6 +255,75 @@ button {
   min-width: 0;
   transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
   animation: rise 0.32s ease both;
+}
+
+/* An explicit height (drag or resize_component) — the content flexes to fill it. */
+.card-sized {
+  overflow: hidden;
+}
+
+.card-sized .chart-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* !important: the svg and the table's scroll box carry inline sizing of their own
+   (height: auto / max-height: 420px) that must yield once the card owns the height. */
+.card-sized .chart-shell svg {
+  height: 100% !important;
+  width: 100%;
+  max-height: none;
+}
+
+.card-sized .table-root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-sized .table-scroll {
+  max-height: none !important;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Mid-drag: kill transitions so the card tracks the pointer without lag. */
+.card.resizing {
+  transition: none;
+  animation: none;
+  user-select: none;
+}
+
+.resize-handle {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  background: linear-gradient(
+    135deg,
+    transparent 0 50%,
+    var(--scroll-thumb) 50% 58%,
+    transparent 58% 70%,
+    var(--scroll-thumb) 70% 78%,
+    transparent 78%
+  );
+  border-bottom-right-radius: var(--r);
+}
+
+.card:hover .resize-handle {
+  opacity: 0.7;
+}
+
+.resize-handle:hover,
+.card.resizing .resize-handle {
+  opacity: 1;
 }
 
 .card.focused {

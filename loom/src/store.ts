@@ -1,5 +1,13 @@
 import { create } from "zustand";
-import type { Dataset, Filter, UiComponentSpec, UiSpec, UiState } from "./contract/index.js";
+import type {
+  ComponentSize,
+  Dataset,
+  Filter,
+  LayoutKind,
+  UiComponentSpec,
+  UiSpec,
+  UiState,
+} from "./contract/index.js";
 import { applyFilters } from "./lib/filter.js";
 
 /**
@@ -53,6 +61,8 @@ interface LoomState {
   removeComponent: (id: string) => boolean;
   moveComponent: (id: string, position: number) => boolean;
   setFilter: (componentId: string, filters: Filter[]) => boolean;
+  setLayout: (layout: LayoutKind) => boolean;
+  resizeComponent: (id: string, size: ComponentSize) => boolean;
   focusComponent: (id: string) => boolean;
   getUiState: () => UiState;
 
@@ -176,6 +186,35 @@ export const useLoom = create<LoomState>((set, get) => ({
     return hit;
   },
 
+  setLayout: (layout) => {
+    const spec = get().spec;
+    if (!spec || spec.layout === layout) return spec?.layout === layout;
+    set((s) => ({
+      spec: { ...spec, layout },
+      history: [...s.history, spec].slice(-HISTORY_LIMIT),
+    }));
+    return true;
+  },
+
+  resizeComponent: (id, size) => {
+    const spec = get().spec;
+    if (!spec) return false;
+    let hit = false;
+    const components = spec.components.map((c) => {
+      if (c.id !== id) return c;
+      hit = true;
+      // Merge so a width-only voice command doesn't wipe a height the user dragged.
+      return { ...c, size: { ...c.size, ...size } };
+    });
+    if (hit) {
+      set((s) => ({
+        spec: { ...spec, components },
+        history: [...s.history, spec].slice(-HISTORY_LIMIT),
+      }));
+    }
+    return hit;
+  },
+
   focusComponent: (id) => {
     const exists = get().spec?.components.some((c) => c.id === id) ?? false;
     if (exists) {
@@ -192,6 +231,7 @@ export const useLoom = create<LoomState>((set, get) => ({
     if (!spec) return { components: [] };
     return {
       title: spec.title,
+      layout: spec.layout,
       components: spec.components.map((c) => {
         const datasetId = "datasetId" in c ? c.datasetId : undefined;
         const filters = "filters" in c ? c.filters : undefined;
@@ -206,6 +246,7 @@ export const useLoom = create<LoomState>((set, get) => ({
           datasetId,
           filters,
           visibleRows: hasRows && datasetId ? applyFilters(records, filters ?? []).length : undefined,
+          size: c.size,
         };
       }),
     };

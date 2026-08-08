@@ -17,6 +17,8 @@ import {
   ScrollPageParams,
   UndoParams,
   SetFilterParams,
+  SetLayoutParams,
+  ResizeComponentParams,
   SortTableParams,
   TOOLS,
   UpdateComponentParams,
@@ -872,6 +874,49 @@ async function handleSetFilter(raw: unknown): Promise<unknown> {
   return rows === undefined ? `Filter applied to ${componentId}` : `Filter applied — ${rows} row${rows === 1 ? "" : "s"} visible`;
 }
 
+async function handleSetLayout(raw: unknown): Promise<unknown> {
+  const parsed = parseParams(SetLayoutParams, raw);
+  if (!parsed.ok) return errorMessage("set_layout", parsed.error);
+  const { layout } = parsed.data;
+
+  const spec = useLoom.getState().spec;
+  if (!spec) return "Nothing on the canvas yet — research something first.";
+  if (spec.layout === layout) return `Already showing the ${layout} layout.`;
+
+  useLoom.getState().setLayout(layout);
+  toolMessage(`set_layout → ${layout}`);
+  return `Switched to the ${layout} layout.`;
+}
+
+/** Named presets → the same spans and pixel heights the drag handle commits. */
+const WIDTH_SPANS = { small: 4, medium: 6, large: 8, full: 12 } as const;
+const HEIGHT_PX = { short: 240, medium: 400, tall: 560 } as const;
+
+async function handleResizeComponent(raw: unknown): Promise<unknown> {
+  const parsed = parseParams(ResizeComponentParams, raw);
+  if (!parsed.ok) return errorMessage("resize_component", parsed.error);
+  const { id, width, height } = parsed.data;
+
+  if (!width && !height) {
+    return errorMessage("resize_component", "say what to change — a width (small/medium/large/full) or a height (short/medium/tall)");
+  }
+
+  const size = {
+    ...(width ? { span: WIDTH_SPANS[width] } : {}),
+    ...(height ? { height: HEIGHT_PX[height] } : {}),
+  };
+  const ok = useLoom.getState().resizeComponent(id, size);
+  if (!ok) return errorMessage("resize_component", `no component with id ${id}`);
+
+  const layout = useLoom.getState().spec?.layout;
+  const parts = [width && `${width} wide`, height && `${height}`].filter(Boolean);
+  toolMessage(`resize_component → ${id} (${parts.join(", ")})`);
+  return (
+    `Resized ${id} to ${parts.join(" and ")}.` +
+    (width && layout === "masonry" ? " Width shows in the grid and focus layouts — masonry columns are fixed-width." : "")
+  );
+}
+
 async function handleFocusComponent(raw: unknown): Promise<unknown> {
   const parsed = parseParams(FocusComponentParams, raw);
   if (!parsed.ok) return errorMessage("focus_component", parsed.error);
@@ -904,6 +949,8 @@ export function createToolHandlers(): Record<string, (params: any) => Promise<an
     render_ui: handleRenderUi,
     update_component: handleUpdateComponent,
     set_filter: handleSetFilter,
+    set_layout: handleSetLayout,
+    resize_component: handleResizeComponent,
     focus_component: handleFocusComponent,
     mock_data: handleMockData,
     sort_table: handleSortTable,

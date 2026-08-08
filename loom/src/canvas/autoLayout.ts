@@ -1,4 +1,4 @@
-import type { ComponentKind, Dataset, UiComponentSpec, UiSpec } from "../contract/index.js";
+import type { ComponentKind, Dataset, LayoutKind, UiComponentSpec, UiSpec } from "../contract/index.js";
 
 /**
  * Build a dashboard from a dataset without asking the model for one.
@@ -192,9 +192,22 @@ export function buildLayout(
 
   return {
     title: title ?? dataset.question,
-    layout: components.length > 2 ? "grid" : "stack",
+    layout: chooseLayout(components),
     components,
   };
+}
+
+/**
+ * Pick the layout preset that suits what the data produced, rather than one shape
+ * for everything. The user can switch presets afterwards — by voice (`set_layout`)
+ * or the switcher pills — so this only has to be a good opening move.
+ */
+export function chooseLayout(components: readonly UiComponentSpec[]): LayoutKind {
+  if (components.length <= 2) return "stack";
+  if (components.length >= 4) return "masonry";
+  const types = new Set(components.map((c) => c.type));
+  if (types.has("chart") || types.has("comparison_table")) return "focus";
+  return "grid";
 }
 
 /** What gets mounted automatically when research finishes. */

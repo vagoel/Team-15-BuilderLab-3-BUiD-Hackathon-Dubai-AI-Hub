@@ -17,6 +17,7 @@
     "@elevenlabs/client": "^1.17.0",
     "@tanstack/react-table": "^9.0.0",
     "@tanstack/react-virtual": "^3.14.9",
+    "masonic": "^4.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^4.0.5",
@@ -31,5 +32,6 @@
     "vite": "^6.0.7",
     "vite-node": "^6.0.0",
     "vitest": "^3.0.5"
-  }
+  },
+  "packageManager": "pnpm@9.15.9+sha512.68046141893c66fad01c079231128e9afb89ef87e2691d69e4d40eee228988295fd4682181bae55b58418c3a253bde65a505ec7c5f9403ece5cc3cd37dcf2531"
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Dataset } from "../contract/index.js";
-import { buildLayout, defaultLayout } from "./autoLayout.js";
+import { buildLayout, chooseLayout, defaultLayout } from "./autoLayout.js";
 
 function dataset(over: Partial<Dataset> = {}): Dataset {
   return {
@@ -98,6 +98,19 @@ describe("buildLayout", () => {
       expect(stats.items[1]).toMatchObject({ label: "Vendors", value: "3" });
       expect(stats.items.map((i) => i.label)).toContain("Price");
     }
+  });
+
+  it("picks a layout preset from what the data produced", () => {
+    // A full research result (4+ cards) packs into masonry; a chart-or-table result
+    // with three cards spotlights it in focus; two or fewer just stack.
+    expect(defaultLayout(dataset()).layout).toBe("masonry");
+    expect(buildLayout(dataset(), ["stat_cards", "chart", "findings"]).layout).toBe("focus");
+    expect(buildLayout(dataset(), ["chart"]).layout).toBe("stack");
+  });
+
+  it("chooseLayout falls back to grid when nothing carries a chart or table", () => {
+    const spec = buildLayout(dataset(), ["stat_cards", "findings", "source_list"]);
+    expect(chooseLayout(spec.components)).toBe("grid");
   });
 
   it("omits the cardinality card when every row is the same category", () => {

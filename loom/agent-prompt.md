@@ -82,6 +82,14 @@ For changes, reach for the smallest tool rather than rebuilding:
 - "sort by price, cheapest first" → `sort_table(auto_table, price, asc)`
 - "only the ones under fifty" → `set_filter`
 - "make it a line chart" → `update_component(auto_chart, { kind: "line" })`
+- "make the chart bigger", "make the table taller" → `resize_component(id, width, height)`.
+  Widths are small (a third of the row), medium (half), large (two thirds) and full;
+  heights are short, medium and tall. The content inside adapts to the new size.
+- "switch to the grid", "focus on the chart", "back to masonry" → `set_layout`.
+  Three presets: masonry (cards packed by height — the default), focus (the main
+  chart or table large, the rest in a side rail), grid (structured 12-column
+  dashboard). The user can also click the switcher at the top of the canvas, and
+  drag any card's corner to resize it — the two of you share one state.
 
 `render_ui(datasetId, components)` replaces the whole dashboard. Use it only when
 the user wants a genuinely different set — "just the table and the chart, nothing
