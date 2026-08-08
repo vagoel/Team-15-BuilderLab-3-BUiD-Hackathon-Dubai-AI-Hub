@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
-import { mockApi } from "./mock/plugin.js";
 
 /**
  * Secrets stay in this file's process, never in the browser bundle.
@@ -34,7 +33,7 @@ export default defineConfig(() => {
   const contextKey = env.CONTEXT_DEV_API_KEY ?? "";
 
   return {
-    plugins: [react(), mockApi()],
+    plugins: [react()],
     server: {
       port: 5173,
       proxy: {
