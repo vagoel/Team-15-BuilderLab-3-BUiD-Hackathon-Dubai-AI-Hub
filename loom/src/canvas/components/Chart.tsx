@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import type { UiComponentSpec } from "../../contract/ui.js";
 import type { Dataset, DataRecord } from "../../contract/dataset.js";
 import { applyFilters } from "../../lib/filter.js";
@@ -20,14 +22,50 @@ const COLORS = [
   "var(--series-7)",
   "var(--series-8)",
 ] as const;
-const WIDTH = 600;
-const HEIGHT = 260;
+/** Fallbacks for the first frame, before the ResizeObserver has reported a size. */
+const FALLBACK_WIDTH = 600;
+const FALLBACK_HEIGHT = 260;
 const MARGIN = { top: 16, right: 16, bottom: 34, left: 48 };
 const GRID_FRACTIONS = [0.25, 0.5, 0.75, 1];
 const EMPTY_MESSAGE = "No rows match the current filter.";
 const CHART_GROUP_CAP = 12;
 
+/**
+ * The plot area's live pixel size. The SVG used to render into a fixed 600×260
+ * viewBox and scale — which preserves aspect ratio, so resizing the card just
+ * letterboxed the same picture. Rendering at the measured size means the geometry
+ * (band widths, plot height, pie radius) actually re-lays out with the card.
+ */
+function usePlotSize(): { ref: RefObject<HTMLDivElement | null>; width: number; height: number } {
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (!rect) return;
+      setSize((prev) =>
+        Math.abs(prev.w - rect.width) < 1 && Math.abs(prev.h - rect.height) < 1
+          ? prev
+          : { w: rect.width, h: rect.height },
+      );
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return {
+    ref,
+    width: size.w >= 100 ? size.w : FALLBACK_WIDTH,
+    height: size.h >= 100 ? size.h : FALLBACK_HEIGHT,
+  };
+}
+
 export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | undefined }) {
+  const plot = usePlotSize();
+
   if (!dataset) {
     return <p style={{ color: "var(--dim)", fontSize: 13 }}>No data yet.</p>;
   }
@@ -40,8 +78,11 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
   const fieldLabel = (key: string) => dataset.fields.find((f) => f.key === key)?.label ?? key;
 
   if (spec.kind === "pie") {
-    return <PieChart rows={rows} xKey={spec.x} yKey={spec.y[0]} />;
+    return <PieChart rows={rows} xKey={spec.x} yKey={spec.y[0]} plot={plot} />;
   }
+
+  const WIDTH = plot.width;
+  const HEIGHT = plot.height;
 
   const xValues = rows.map((r) => String(r[spec.x] ?? ""));
   const distinctXCount = new Set(xValues).size;
@@ -79,7 +120,7 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
   const rotateLabels = categories.length > 8;
 
   return (
-    <div>
+    <div className="chart-box">
       {caption && (
         <div style={{ color: "var(--dim)", fontSize: 12, marginBottom: 8 }}>{caption}</div>
       )}
@@ -102,14 +143,15 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
           ))}
         </div>
       )}
+      <div ref={plot.ref} className="chart-plot">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}
+        style={{ width: "100%", height: "100%", display: "block", overflow: "visible" }}
       >
         <style>{`
           .loom-bar { animation: loom-bar-grow .45s ease both; transform-box: fill-box; transform-origin: bottom; }
           @keyframes loom-bar-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-          .loom-line { stroke-dasharray: 1400; stroke-dashoffset: 1400; animation: loom-line-draw .7s ease forwards; }
+          .loom-line { stroke-dasharray: 4000; stroke-dashoffset: 4000; animation: loom-line-draw .7s ease forwards; }
           @keyframes loom-line-draw { to { stroke-dashoffset: 0; } }
           .loom-dot { animation: loom-dot-in .3s ease both; }
           @keyframes loom-dot-in { from { opacity: 0; } to { opacity: 1; } }
@@ -217,6 +259,7 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
           );
         })}
       </svg>
+      </div>
     </div>
   );
 }
@@ -224,10 +267,23 @@ export function Chart({ spec, dataset }: { spec: ChartSpec; dataset: Dataset | u
 const PIE_MAX_SLICES = 8;
 const PIE_LABEL_MIN_FRACTION = 0.04;
 
-function PieChart({ rows, xKey, yKey }: { rows: DataRecord[]; xKey: string; yKey: string | undefined }) {
+function PieChart({
+  rows,
+  xKey,
+  yKey,
+  plot,
+}: {
+  rows: DataRecord[];
+  xKey: string;
+  yKey: string | undefined;
+  plot: ReturnType<typeof usePlotSize>;
+}) {
   if (!yKey) {
     return <p style={{ color: "var(--dim)", fontSize: 13 }}>{EMPTY_MESSAGE}</p>;
   }
+
+  const WIDTH = plot.width;
+  const HEIGHT = plot.height;
 
   const totals = new Map<string, number>();
   const order: string[] = [];
@@ -259,7 +315,7 @@ function PieChart({ rows, xKey, yKey }: { rows: DataRecord[]; xKey: string; yKey
 
   const cx = WIDTH / 2;
   const cy = HEIGHT / 2;
-  const outerR = Math.min(WIDTH, HEIGHT) / 2 - 62;
+  const outerR = Math.max(Math.min(WIDTH, HEIGHT) / 2 - 62, 24);
   const innerR = outerR * 0.55;
 
   let cursor = 0;
@@ -272,7 +328,7 @@ function PieChart({ rows, xKey, yKey }: { rows: DataRecord[]; xKey: string; yKey
   });
 
   return (
-    <div>
+    <div className="chart-box">
       <div style={{ display: "flex", gap: 14, marginBottom: 10, flexWrap: "wrap" }}>
         {slices.map((s, i) => (
           <div
@@ -293,9 +349,10 @@ function PieChart({ rows, xKey, yKey }: { rows: DataRecord[]; xKey: string; yKey
           </div>
         ))}
       </div>
+      <div ref={plot.ref} className="chart-plot">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        style={{ width: "100%", height: "auto", display: "block", overflow: "visible" }}
+        style={{ width: "100%", height: "100%", display: "block", overflow: "visible" }}
       >
         <style>{`
           .loom-slice { animation: loom-slice-in .4s ease both; transform-box: fill-box; transform-origin: center; }
@@ -355,6 +412,7 @@ function PieChart({ rows, xKey, yKey }: { rows: DataRecord[]; xKey: string; yKey
           );
         })}
       </svg>
+      </div>
     </div>
   );
 }

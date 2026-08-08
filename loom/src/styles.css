@@ -259,12 +259,17 @@ button {
   display: flex;
 }
 
-/* !important: the svg and the table's scroll box carry inline sizing of their own
-   (height: auto / max-height: 420px) that must yield once the card owns the height. */
-.card-fill .chart-shell svg {
-  height: 100% !important;
-  width: 100%;
-  max-height: none;
+.card-fill .chart-box {
+  flex: 1;
+  min-height: 0;
+}
+
+/* In a sized card the plot flexes to whatever is left under the caption/legend;
+   the ResizeObserver in Chart.tsx re-renders the SVG at the measured size. */
+.card-fill .chart-plot {
+  height: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .card-fill .table-root {
@@ -339,14 +344,22 @@ button {
   margin-bottom: 10px;
 }
 
-/* Caps the chart's plot area so four bars don't render at 500px tall — the SVG keeps
-   its own aspect ratio (preserveAspectRatio defaults to "meet"), it just stops growing. */
 .chart-shell {
   overflow: hidden;
 }
 
-.chart-shell svg {
-  max-height: 288px;
+.chart-box {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Fixed plot height for auto-sized cards (the stack layout); a card with an
+   explicit size overrides this with flex above. */
+.chart-plot {
+  height: 280px;
+  min-height: 0;
 }
 
 /* Stat numbers are the loudest thing on the page: distribute the items across the
