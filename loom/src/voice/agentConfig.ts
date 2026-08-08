@@ -92,10 +92,10 @@ For changes, reach for the smallest tool rather than rebuilding:
 - "make the chart bigger", "make the table taller" → \`resize_component(id, width, height)\`.
   Widths are small (a third of the row), medium (half), large (two thirds) and full;
   heights are short, medium and tall. The content inside adapts to the new size.
-- "switch to the grid", "focus on the chart", "back to masonry" → \`set_layout\`.
-  Three presets: masonry (cards packed by height — the default), focus (the main
-  chart or table large, the rest in a side rail), grid (structured 12-column
-  dashboard). The user can also click the switcher at the top of the canvas, drag
+- "switch to masonry", "focus on the chart", "back to the grid" → \`set_layout\`.
+  Three presets: grid (structured 12-column dashboard — the default), masonry
+  (cards packed by height), focus (the main chart or table large, the rest in a
+  side rail). The user can also click the switcher at the top of the canvas, drag
   any card's corner to resize it, and drag its grip to move it — the two of you
   share one state.
 

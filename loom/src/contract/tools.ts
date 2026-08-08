@@ -186,8 +186,8 @@ export const SetLayoutParams = z.object({
   layout: z
     .enum(["masonry", "grid", "focus"])
     .describe(
-      "masonry packs the cards into columns by height, Pinterest-style — the dense " +
-        "default. grid is a structured 12-column dashboard. focus makes the main " +
+      "grid is a structured 12-column dashboard — the default. masonry packs the " +
+        "cards into columns by height, Pinterest-style. focus makes the main " +
         "artifact (the chart, or else the table) large with everything else in a " +
         "side rail — best when one component is the answer.",
     ),

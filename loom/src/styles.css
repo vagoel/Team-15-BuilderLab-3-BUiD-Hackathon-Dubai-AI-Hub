@@ -218,6 +218,14 @@ button {
   border-color: var(--dim);
 }
 
+/* On <body> while a card is being dragged or resized: the pointer sweeps across
+   the page mid-gesture and would otherwise select every card's text as it goes. */
+.no-select,
+.no-select * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
 @media (max-width: 1100px) {
   .canvas {
     padding: 24px 20px 48px;

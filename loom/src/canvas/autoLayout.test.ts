@@ -100,17 +100,11 @@ describe("buildLayout", () => {
     }
   });
 
-  it("picks a layout preset from what the data produced", () => {
-    // A full research result (4+ cards) packs into masonry; a chart-or-table result
-    // with three cards spotlights it in focus; two or fewer just stack.
-    expect(defaultLayout(dataset()).layout).toBe("masonry");
-    expect(buildLayout(dataset(), ["stat_cards", "chart", "findings"]).layout).toBe("focus");
+  it("opens in the structured grid, with one or two components just stacking", () => {
+    expect(defaultLayout(dataset()).layout).toBe("grid");
+    expect(buildLayout(dataset(), ["stat_cards", "chart", "findings"]).layout).toBe("grid");
     expect(buildLayout(dataset(), ["chart"]).layout).toBe("stack");
-  });
-
-  it("chooseLayout falls back to grid when nothing carries a chart or table", () => {
-    const spec = buildLayout(dataset(), ["stat_cards", "findings", "source_list"]);
-    expect(chooseLayout(spec.components)).toBe("grid");
+    expect(chooseLayout(defaultLayout(dataset()).components)).toBe("grid");
   });
 
   it("omits the cardinality card when every row is the same category", () => {

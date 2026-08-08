@@ -198,16 +198,12 @@ export function buildLayout(
 }
 
 /**
- * Pick the layout preset that suits what the data produced, rather than one shape
- * for everything. The user can switch presets afterwards — by voice (`set_layout`)
- * or the switcher pills — so this only has to be a good opening move.
+ * The structured grid is the default opening view; one or two components just
+ * stack. The user can switch presets afterwards — by voice (`set_layout`) or the
+ * switcher pills — so this only has to be a good opening move.
  */
 export function chooseLayout(components: readonly UiComponentSpec[]): LayoutKind {
-  if (components.length <= 2) return "stack";
-  if (components.length >= 4) return "masonry";
-  const types = new Set(components.map((c) => c.type));
-  if (types.has("chart") || types.has("comparison_table")) return "focus";
-  return "grid";
+  return components.length <= 2 ? "stack" : "grid";
 }
 
 /** What gets mounted automatically when research finishes. */

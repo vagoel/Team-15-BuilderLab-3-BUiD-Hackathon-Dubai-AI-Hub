@@ -99,8 +99,8 @@ describe("layout and sizing", () => {
     columns: ["a"],
   };
 
-  it("defaults a spec with no layout to masonry", () => {
-    expect(UiSpec.parse({ components: [table] }).layout).toBe("masonry");
+  it("defaults a spec with no layout to the structured grid", () => {
+    expect(UiSpec.parse({ components: [table] }).layout).toBe("grid");
   });
 
   it("accepts every switchable preset and rejects an invented one", () => {

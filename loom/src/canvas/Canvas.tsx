@@ -15,9 +15,9 @@ const EXAMPLE_PROMPTS = [
 
 /** The presets the user can switch between; `stack` is internal (tiny dashboards). */
 const LAYOUT_PRESETS: Array<{ kind: LayoutKind; label: string }> = [
+  { kind: "grid", label: "Grid" },
   { kind: "masonry", label: "Masonry" },
   { kind: "focus", label: "Focus" },
-  { kind: "grid", label: "Grid" },
 ];
 
 export function Canvas() {
@@ -211,8 +211,16 @@ function DashboardGrid({
   const { width, mounted, containerRef } = useContainerWidth();
   const layout = seedLayout(spec);
 
+  /**
+   * The pointer leaves the card mid-gesture, and the browser reads that as a text
+   * selection sweep across the whole page. Kill selection globally for the duration.
+   */
+  const suppressSelection = () => document.body.classList.add("no-select");
+  const restoreSelection = () => document.body.classList.remove("no-select");
+
   /** One drag/resize gesture = one history entry, committed on release only. */
   const onResizeStop = (_layout: Layout, _old: LayoutItem | null, item: LayoutItem | null) => {
+    restoreSelection();
     if (!item) return;
     useLoom.getState().resizeComponent(item.i, {
       span: item.w,
@@ -221,6 +229,7 @@ function DashboardGrid({
   };
 
   const onDragStop = (finalLayout: Layout) => {
+    restoreSelection();
     const ordered = [...finalLayout].sort((a, b) => a.y - b.y || a.x - b.x).map((l) => l.i);
     useLoom.getState().reorderComponents(ordered);
   };
@@ -234,6 +243,8 @@ function DashboardGrid({
           gridConfig={{ cols: COLS, rowHeight: ROW_HEIGHT, margin: [MARGIN, MARGIN], containerPadding: [0, 0] }}
           dragConfig={{ enabled: true, handle: ".drag-grip" }}
           resizeConfig={{ enabled: true, handles: ["se"] }}
+          onResizeStart={suppressSelection}
+          onDragStart={suppressSelection}
           onResizeStop={onResizeStop}
           onDragStop={onDragStop}
         >

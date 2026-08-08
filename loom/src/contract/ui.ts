@@ -141,7 +141,7 @@ export type LayoutKind = z.infer<typeof LayoutKind>;
 
 export const UiSpec = z.object({
   title: z.string().optional(),
-  layout: LayoutKind.default("masonry"),
+  layout: LayoutKind.default("grid"),
   components: z.array(UiComponentSpec).min(1).max(10),
 });
 export type UiSpec = z.infer<typeof UiSpec>;
