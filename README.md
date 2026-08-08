@@ -2,6 +2,9 @@
 
 **Voice-driven web research that builds a dashboard while you talk.**
 
+- **Live app:** https://loom-beryl-theta.vercel.app/
+- **Pitch deck:** https://loom-beryl-theta.vercel.app/deck.html
+
 Scry is a single-page React app with a conversational agent attached to it. You ask a
 research question out loud — or type it — and the agent searches the live web, reads
 the pages it picked, and a dashboard assembles itself on screen: stat cards, a chart,
@@ -224,8 +227,8 @@ faked API.
 
 ## Production deployment
 
-Deployed on Vercel with **`loom/` as the project root**, so `loom/vercel.json` is the
-config that applies:
+Deployed at **https://loom-beryl-theta.vercel.app/** on Vercel with **`loom/` as the
+project root**, so `loom/vercel.json` is the config that applies:
 
 ```json
 {

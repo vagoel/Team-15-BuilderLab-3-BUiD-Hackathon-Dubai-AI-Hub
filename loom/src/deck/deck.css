@@ -1,0 +1,864 @@
+/*
+ * Deck theme — Scry's dark tokens (see DESIGN.md), no stock Reveal theme.
+ * Visual set pieces animate when their slide gains Reveal's `.present` class,
+ * so each build plays once as the slide arrives.
+ */
+
+:root {
+  --bg: #07080c;
+  --panel: #0e1017;
+  --panel-2: #141822;
+  --line: #202634;
+  --ink: #eef1f7;
+  --mute: #98a2b8;
+  --dim: #656e83;
+  --accent: #5b8cff;
+  --accent-soft: rgba(91, 140, 255, 0.14);
+  --good: #00d3a7;
+  --s1: #5b8cff;
+  --s2: #00d3a7;
+  --s3: #ffb454;
+  --s4: #ff6b6b;
+}
+
+/* ---------- shell + type ---------- */
+
+html,
+body {
+  background: var(--bg);
+}
+
+.reveal-viewport {
+  background: var(--bg);
+}
+
+.reveal {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  font-size: 30px;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.reveal h1,
+.reveal h2,
+.reveal h3 {
+  color: var(--ink);
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  margin: 0 0 12px;
+  text-transform: none;
+}
+
+.reveal h1 {
+  font-size: 2.6em;
+}
+
+.reveal h2 {
+  font-size: 1.55em;
+  margin-bottom: 6px;
+}
+
+.reveal p {
+  color: var(--mute);
+  line-height: 1.5;
+  margin: 10px 0;
+}
+
+.reveal a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.reveal .accent {
+  color: var(--accent);
+}
+
+.reveal .kicker {
+  font-size: 0.5em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 26px;
+}
+
+.reveal .tagline {
+  font-size: 1.05em;
+  color: var(--mute);
+  margin-top: 4px;
+}
+
+.reveal .dim-note {
+  font-size: 0.6em;
+  color: var(--dim);
+}
+
+.reveal .caption {
+  font-size: 0.62em;
+  color: var(--mute);
+  margin-top: 30px;
+}
+
+.reveal .caption b {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.reveal .cta {
+  margin-top: 28px;
+  font-size: 0.75em;
+}
+
+.reveal .cta a {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 12px 26px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.reveal .cta a:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.reveal .progress {
+  color: var(--accent);
+  height: 3px;
+}
+
+.reveal .controls {
+  color: var(--dim);
+}
+
+/* build-in helper: plays when the slide becomes .present */
+.reveal .rise {
+  opacity: 0;
+}
+
+.reveal section.present .rise {
+  animation: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.reveal section.present .d1 { animation-delay: 0.15s; }
+.reveal section.present .d2 { animation-delay: 0.35s; }
+.reveal section.present .d3 { animation-delay: 0.55s; }
+.reveal section.present .d4 { animation-delay: 0.8s; }
+.reveal section.present .d5 { animation-delay: 1.05s; }
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- slide 1 + 11: breathing mic orb ---------- */
+
+.mic-orb {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 34px;
+}
+
+.mic-orb.small {
+  width: 60px;
+  height: 60px;
+  margin-bottom: 24px;
+}
+
+.mic-orb span {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  opacity: 0.9;
+  animation: orb 2.6s ease-out infinite;
+}
+
+.mic-orb span:nth-child(2) { animation-delay: 0.85s; }
+.mic-orb span:nth-child(3) { animation-delay: 1.7s; }
+
+.mic-orb::after {
+  content: "";
+  position: absolute;
+  inset: 34%;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+@keyframes orb {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
+/* ---------- slide 2: wall of prose ---------- */
+
+.prose-wall {
+  width: 560px;
+  margin: 0 auto 40px;
+  padding: 26px 30px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  text-align: left;
+}
+
+.pline {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--panel-2);
+  margin: 12px 0;
+}
+
+.pline.w60 { width: 60%; }
+.pline.w70 { width: 70%; }
+.pline.w85 { width: 85%; }
+.pline.w88 { width: 88%; }
+.pline.w89 { width: 89%; }
+.pline.w90 { width: 90%; }
+.pline.w92 { width: 92%; }
+.pline.w93 { width: 93%; }
+.pline.w95 { width: 95%; }
+
+.pline.buried {
+  height: auto;
+  background: none;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--panel-2);
+  letter-spacing: -1px;
+}
+
+.pline.buried em {
+  font-style: normal;
+  letter-spacing: 0;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 15px;
+  background: var(--accent-soft);
+  border-radius: 4px;
+  padding: 2px 6px;
+  animation: buriedPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes buriedPulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  50% { box-shadow: 0 0 0 7px var(--accent-soft); }
+}
+
+/* ---------- slide 3: voice → canvas ---------- */
+
+.shift-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 44px;
+  margin: 0 auto 46px;
+}
+
+.shift-label {
+  display: block;
+  margin-top: 14px;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.shift-arrow {
+  font-size: 34px;
+  color: var(--dim);
+}
+
+.wavebars {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 120px;
+  justify-content: center;
+}
+
+.wavebars i {
+  width: 8px;
+  border-radius: 4px;
+  background: var(--accent);
+  height: 22px;
+  animation: wave 1.1s ease-in-out infinite;
+}
+
+.wavebars i:nth-child(1) { animation-delay: 0s; }
+.wavebars i:nth-child(2) { animation-delay: 0.12s; }
+.wavebars i:nth-child(3) { animation-delay: 0.24s; }
+.wavebars i:nth-child(4) { animation-delay: 0.36s; }
+.wavebars i:nth-child(5) { animation-delay: 0.48s; }
+.wavebars i:nth-child(6) { animation-delay: 0.6s; }
+.wavebars i:nth-child(7) { animation-delay: 0.72s; }
+
+@keyframes wave {
+  0%, 100% { height: 18px; opacity: 0.55; }
+  50% { height: 78px; opacity: 1; }
+}
+
+.mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 78px);
+  gap: 8px;
+  padding: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.mg-stat {
+  height: 30px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+
+.mg-chart {
+  grid-column: span 1;
+  height: 62px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  padding: 7px;
+}
+
+.mg-chart i {
+  flex: 1;
+  border-radius: 2px;
+  background: var(--s1);
+}
+
+.mg-chart i:nth-child(1) { height: 40%; background: var(--s1); }
+.mg-chart i:nth-child(2) { height: 85%; background: var(--s2); }
+.mg-chart i:nth-child(3) { height: 55%; background: var(--s3); }
+.mg-chart i:nth-child(4) { height: 70%; background: var(--s4); }
+
+.mg-table {
+  grid-column: span 2;
+  height: 62px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  padding: 8px 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.mg-table i {
+  height: 7px;
+  border-radius: 3px;
+  background: var(--line);
+}
+
+/* ---------- slide 4: dashboard assembling ---------- */
+
+.spoken {
+  display: inline-block;
+  font-size: 0.62em;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 12px 26px;
+  margin: 6px 0 34px;
+}
+
+.assemble {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 720px;
+  margin: 0 auto;
+}
+
+.as-stat {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 18px;
+  text-align: left;
+}
+
+.as-stat b {
+  display: block;
+  font-size: 30px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.as-stat span {
+  font-size: 11px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.as-chart {
+  grid-column: span 1;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 14px;
+}
+
+.as-chart i {
+  flex: 1;
+  border-radius: 3px;
+  background: var(--s1);
+  transform-origin: bottom;
+}
+
+.reveal section.present .as-chart i {
+  animation: barGrow 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) 1.3s both;
+}
+
+.as-chart i.h30 { height: 30%; background: var(--s3); }
+.as-chart i.h40 { height: 40%; background: var(--s1); }
+.as-chart i.h55 { height: 55%; background: var(--s2); }
+.as-chart i.h62 { height: 62%; background: var(--s2); }
+.as-chart i.h70 { height: 70%; background: var(--s4); }
+.as-chart i.h90 { height: 90%; background: var(--s1); }
+
+@keyframes barGrow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+.as-table {
+  grid-column: span 2;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  height: 120px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.as-table i {
+  height: 11px;
+  border-radius: 5px;
+  background: var(--panel-2);
+}
+
+.as-table i:nth-child(odd) {
+  background: var(--line);
+}
+
+/* ---------- slide 5: layout control ---------- */
+
+.layout-stage {
+  position: relative;
+  width: 680px;
+  margin: 26px auto 0;
+}
+
+.ls-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding: 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.ls-w {
+  height: 88px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+
+.ls-move {
+  border-color: var(--accent);
+  animation: nudge 3s ease-in-out infinite;
+}
+
+.ls-resize {
+  animation: stretch 3s ease-in-out infinite;
+  transform-origin: left center;
+}
+
+@keyframes nudge {
+  0%, 100% { transform: none; }
+  50% { transform: translate(12px, 8px); }
+}
+
+@keyframes stretch {
+  0%, 100% { transform: none; }
+  50% { transform: scaleX(1.14); }
+}
+
+.ls-table {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ls-table i {
+  height: 9px;
+  border-radius: 4px;
+  background: var(--line);
+}
+
+.ls-table i.focus-row {
+  background: var(--accent);
+  animation: focusGlow 2.2s ease-in-out infinite;
+}
+
+@keyframes focusGlow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  50% { box-shadow: 0 0 0 6px var(--accent-soft); }
+}
+
+.filter-chip {
+  position: absolute;
+  top: -18px;
+  right: -26px;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 7px 16px;
+}
+
+/* ---------- slide 6: report grows ---------- */
+
+.grow-stage {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 640px;
+  margin: 30px auto 0;
+  padding: 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.gs-w {
+  height: 84px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+
+.gs-w.wide {
+  grid-column: span 2;
+}
+
+.gs-new {
+  height: 84px;
+  border-radius: 8px;
+  border: 2px dashed var(--accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--accent);
+  opacity: 0;
+}
+
+.gs-new b {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.gs-new span {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.reveal section.present .gs-new {
+  animation: slotIn 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) 0.8s both;
+}
+
+@keyframes slotIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- slide 7: bar ⇄ pie morph ---------- */
+
+.morph-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  margin: 34px auto 0;
+}
+
+.morph-arrow {
+  font-size: 40px;
+  color: var(--dim);
+}
+
+.morph-bars,
+.morph-pie {
+  width: 240px;
+  height: 160px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.morph-bars rect {
+  transform-origin: center bottom;
+  transform-box: fill-box;
+  animation: barBreathe 3.2s ease-in-out infinite;
+}
+
+.morph-bars rect:nth-child(1) { fill: var(--s1); }
+.morph-bars rect:nth-child(2) { fill: var(--s2); animation-delay: 0.2s; }
+.morph-bars rect:nth-child(3) { fill: var(--s3); animation-delay: 0.4s; }
+.morph-bars rect:nth-child(4) { fill: var(--s4); animation-delay: 0.6s; }
+
+@keyframes barBreathe {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.72); }
+}
+
+.morph-pie .seg {
+  fill: none;
+  stroke-width: 16;
+  stroke-dasharray: 0 163.4;
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
+/* circumference of r=26 ≈ 163.4; segments 40/28/20/12 % */
+.reveal section.present .morph-pie .s1 { stroke: var(--s1); animation: seg1 1s ease-out 0.4s both; }
+.reveal section.present .morph-pie .s2 { stroke: var(--s2); animation: seg2 1s ease-out 0.6s both; }
+.reveal section.present .morph-pie .s3 { stroke: var(--s3); animation: seg3 1s ease-out 0.8s both; }
+.reveal section.present .morph-pie .s4 { stroke: var(--s4); animation: seg4 1s ease-out 1s both; }
+
+@keyframes seg1 { to { stroke-dasharray: 65.4 98; stroke-dashoffset: 0; } }
+@keyframes seg2 { to { stroke-dasharray: 45.7 117.7; stroke-dashoffset: -65.4; } }
+@keyframes seg3 { to { stroke-dasharray: 32.7 130.7; stroke-dashoffset: -111.1; } }
+@keyframes seg4 { to { stroke-dasharray: 19.6 143.8; stroke-dashoffset: -143.8; } }
+
+/* ---------- slide 8: PDF export ---------- */
+
+.pdf-stage {
+  position: relative;
+  width: 300px;
+  margin: 34px auto 0;
+}
+
+.pdf-sheet {
+  width: 300px;
+  background: #fdfdfa;
+  border-radius: 8px;
+  padding: 24px 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  text-align: left;
+}
+
+.ps-title {
+  height: 14px;
+  width: 55%;
+  border-radius: 4px;
+  background: #1a1d27;
+  margin-bottom: 16px;
+}
+
+.ps-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ps-chart {
+  flex: 1.4;
+  height: 74px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #dbe4ff 0%, #b9cbff 100%);
+}
+
+.ps-stats {
+  flex: 1;
+  height: 74px;
+  border-radius: 5px;
+  background: #e8eaf1;
+}
+
+.ps-line {
+  height: 8px;
+  border-radius: 4px;
+  background: #d5d8e2;
+  margin: 10px 0;
+}
+
+.ps-line.short {
+  width: 65%;
+}
+
+.pdf-badge {
+  position: absolute;
+  right: -54px;
+  bottom: 18px;
+  font-size: 17px;
+  font-weight: 750;
+  color: var(--bg);
+  background: var(--good);
+  border-radius: 999px;
+  padding: 10px 18px;
+  animation: bob 2s ease-in-out infinite;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* ---------- slide 9: trust ---------- */
+
+.trust-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 44px;
+}
+
+.trust-number {
+  font-size: 84px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.trust-wire {
+  width: 110px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--line));
+  margin: 0 18px;
+  position: relative;
+}
+
+.reveal section.present .trust-wire::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: trace 2s ease-in-out infinite;
+}
+
+@keyframes trace {
+  0% { left: 0; opacity: 1; }
+  70% { left: 102px; opacity: 1; }
+  100% { left: 102px; opacity: 0; }
+}
+
+.trust-chip {
+  font-size: 16px;
+  color: var(--mute);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 18px;
+}
+
+/* ---------- slide 10: V2 ---------- */
+
+.v2-cards {
+  display: flex;
+  gap: 22px;
+  justify-content: center;
+  margin-top: 36px;
+}
+
+.v2-card {
+  width: 330px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 30px 28px;
+  text-align: left;
+}
+
+.v2-icon {
+  font-size: 30px;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+
+.v2-card b {
+  display: block;
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.v2-card span {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--mute);
+}
+
+/* ---------- reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal *,
+  .reveal *::after,
+  .reveal *::before {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .reveal .rise,
+  .gs-new {
+    opacity: 1;
+  }
+
+  .morph-pie .s1 { stroke: var(--s1); stroke-dasharray: 65.4 98; }
+  .morph-pie .s2 { stroke: var(--s2); stroke-dasharray: 45.7 117.7; stroke-dashoffset: -65.4; }
+  .morph-pie .s3 { stroke: var(--s3); stroke-dasharray: 32.7 130.7; stroke-dashoffset: -111.1; }
+  .morph-pie .s4 { stroke: var(--s4); stroke-dasharray: 19.6 143.8; stroke-dashoffset: -143.8; }
+}

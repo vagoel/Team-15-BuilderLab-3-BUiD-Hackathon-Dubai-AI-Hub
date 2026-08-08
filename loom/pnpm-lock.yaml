@@ -41,6 +41,9 @@ importers:
       react-grid-layout:
         specifier: ^2.2.4
         version: 2.2.4(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      reveal.js:
+        specifier: ^6.0.1
+        version: 6.0.1
       zod:
         specifier: ^4.0.5
         version: 4.4.3
@@ -1037,6 +1040,9 @@ packages:
 
   resize-observer-polyfill@1.5.1:
     resolution: {integrity: sha512-LwZrotdHOo12nQuZlHEmtuXdqGoOD0OhaxopaNFxWzInpEgaLWoVuAMbTzixuosCx2nEG58ngzW3vxdWoxIgdg==}
+
+  reveal.js@6.0.1:
+    resolution: {integrity: sha512-9eacArNIgqO2HGWOK+93gJNn+gvdGDVbSq+i2u3Ja9kjiHps0XNLpgYTZTYjKRH91uXy3clGimeGiw4umHG/tg==}
 
   rgbcolor@1.0.1:
     resolution: {integrity: sha512-9aZLIrhRaD97sgVhtJOW6ckOEh6/GnvQtdVNfdZ6s67+3/XwLS9lBcQYzEEhYVeUowN7pRzMLsyGhK2i/xvWbw==}
@@ -2126,6 +2132,8 @@ snapshots:
     optional: true
 
   resize-observer-polyfill@1.5.1: {}
+
+  reveal.js@6.0.1: {}
 
   rgbcolor@1.0.1:
     optional: true
