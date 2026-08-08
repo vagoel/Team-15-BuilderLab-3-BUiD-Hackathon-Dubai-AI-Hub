@@ -68,6 +68,9 @@ export function useVoiceSession(): UseVoiceSession {
   const [inputLevel, setInputLevel] = useState(0);
 
   const conversationRef = useRef<Conversation | null>(null);
+  // True while the live session is text-only (WebSocket, no microphone). Lets Start
+  // upgrade a typed session to a voice one, and keeps the two entry points distinct.
+  const textOnlyRef = useRef(false);
   // Guards React 19 StrictMode's dev-only double-invoke of effects/callbacks, and a
   // stray double-click on the mic button, from opening two sessions at once.
   const startingRef = useRef(false);
@@ -160,6 +163,7 @@ export function useVoiceSession(): UseVoiceSession {
     }
 
     startingRef.current = true;
+    textOnlyRef.current = connectionType === "websocket";
     const epoch = ++sessionEpochRef.current;
     setError(null);
     setStatus("connecting");
@@ -167,9 +171,11 @@ export function useVoiceSession(): UseVoiceSession {
 
 
     try {
-      // We deliberately do NOT open our own microphone here.
+      // A WebSocket session is text-only — no microphone is involved, so we skip the
+      // permission gate entirely and let typing work without ever prompting for mic.
       //
-      // Doing so — even briefly, to surface the permission prompt at a predictable
+      // For a voice (WebRTC) session we deliberately do NOT open our own microphone
+      // here. Doing so — even briefly, to surface the permission prompt at a predictable
       // moment — leaves a second capture of the same device alive across the SDK's
       // handshake, and the session then dies at "publishing track": the LiveKit room
       // connects, the track fails to publish, the server deletes the room (reason 5)
@@ -177,7 +183,9 @@ export function useVoiceSession(): UseVoiceSession {
       // instead is no better; it stops the only live track microseconds before the SDK
       // asks for one. The microphone belongs to the SDK. It raises the permission
       // prompt itself on the first attempt.
-      await assertMicrophoneUsable();
+      if (connectionType === "webrtc") {
+        await assertMicrophoneUsable();
+      }
 
 
       const conversation = await Conversation.startSession({
@@ -258,11 +266,18 @@ export function useVoiceSession(): UseVoiceSession {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startLevelLoop, stopLevelLoop]);
 
-  /** Public entry point. `?transport=websocket` is available for text-only debugging. */
+  /**
+   * Public entry point for a *voice* session. `?transport=websocket` forces text-only.
+   * If a text-only (typed) session is already live, swap it for the voice one rather
+   * than no-op on the existing connection.
+   */
   const start = useCallback(async () => {
+    if (conversationRef.current && textOnlyRef.current) {
+      await stop();
+    }
     const forced = new URLSearchParams(location.search).get("transport");
     await startWithTransport(forced === "websocket" ? "websocket" : "webrtc");
-  }, [startWithTransport]);
+  }, [startWithTransport, stop]);
 
   const toggleMute = useCallback(() => {
     setMuted((m) => {
@@ -272,13 +287,23 @@ export function useVoiceSession(): UseVoiceSession {
     });
   }, []);
 
-  const sendText = useCallback((text: string) => {
+  const sendText = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    const convo = conversationRef.current;
-    if (!convo) {
-      useLoom.getState().addMessage({ role: "system", kind: "status", text: "Not connected — start the mic first." });
-      return;
+
+    // No live session yet: open a text-only (no-mic) connection so typing works on its
+    // own, without ever starting the voice model. Start remains the button for voice.
+    if (!conversationRef.current) {
+      await startWithTransport("websocket");
+      if (!conversationRef.current) {
+        // startWithTransport already surfaced the failure (error banner / status).
+        useLoom.getState().addMessage({
+          role: "system",
+          kind: "status",
+          text: "Couldn't connect to send that — check the connection and try again.",
+        });
+        return;
+      }
     }
 
     // The transcript line goes in only after the send call has not thrown.
@@ -308,7 +333,7 @@ export function useVoiceSession(): UseVoiceSession {
       }
     };
     attempt(3);
-  }, []);
+  }, [startWithTransport]);
 
   // Belt-and-braces cleanup on unmount (covers navigation away / hot reload; the
   // StrictMode double-invoke is guarded by `startingRef`/`conversationRef` above).
