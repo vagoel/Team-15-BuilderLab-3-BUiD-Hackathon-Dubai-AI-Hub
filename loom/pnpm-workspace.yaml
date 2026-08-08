@@ -1,0 +1,8 @@
+# Single package for now — the contract lives in src/contract/ rather than its own
+# workspace package, because with no backend there is only one consumer. Promoting it
+# back to a package is a move plus a package.json when the server returns.
+packages: []
+
+# esbuild ships a platform binary via a postinstall script.
+allowBuilds:
+  esbuild: true

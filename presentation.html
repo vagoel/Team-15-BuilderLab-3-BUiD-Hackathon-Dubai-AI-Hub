@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sidekick — Dubai AI Hub Builder Lab #3</title>
+<style>
+  :root{
+    --bg:#0a0b0f;
+    --panel:#12141c;
+    --panel2:#171a24;
+    --line:#252a38;
+    --ink:#f2f4f8;
+    --mute:#9aa3b8;
+    --dim:#6b7488;
+    --accent:#5b8cff;
+    --accent2:#00d3a7;
+    --warn:#ffb454;
+    --bad:#ff6b6b;
+    --slide-w:1280px;
+    --slide-h:720px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:#05060a;
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:32px 0;
+  }
+  .deck{display:flex;flex-direction:column;align-items:center;gap:28px}
+  .slide{
+    width:var(--slide-w);height:var(--slide-h);
+    background:var(--bg);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:56px 64px;
+    position:relative;
+    overflow:hidden;
+    display:flex;flex-direction:column;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);
+  }
+  .slide::after{
+    content:attr(data-n);
+    position:absolute;right:34px;bottom:24px;
+    font-size:13px;color:var(--dim);letter-spacing:.08em;
+  }
+  .kicker{
+    font-size:13px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--accent);font-weight:700;margin-bottom:14px;
+  }
+  h1{font-size:60px;line-height:1.05;letter-spacing:-.025em;font-weight:800}
+  h2{font-size:38px;line-height:1.12;letter-spacing:-.02em;font-weight:800;margin-bottom:8px}
+  h3{font-size:19px;font-weight:700;letter-spacing:-.01em}
+  p{font-size:18px;line-height:1.55;color:var(--mute)}
+  .lead{font-size:22px;line-height:1.5;color:var(--mute);max-width:52ch}
+  .sub{font-size:20px;color:var(--dim);margin-top:14px}
+  .rule{height:1px;background:var(--line);margin:22px 0}
+  .grow{flex:1}
+  .row{display:flex;gap:18px}
+  .col{flex:1}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .card{
+    background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:22px;
+  }
+  .card.hi{border-color:#2f4a8f;background:linear-gradient(180deg,#141a2c,#11131b)}
+  .card.good{border-color:#1d5f4f}
+  .card.bad{border-color:#5f2626}
+  .card h3{margin-bottom:8px}
+  .card p{font-size:16px;line-height:1.5}
+  .tag{
+    display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;
+    text-transform:uppercase;padding:4px 9px;border-radius:5px;margin-bottom:10px;
+  }
+  .t-blue{background:rgba(91,140,255,.14);color:#8fb0ff}
+  .t-green{background:rgba(0,211,167,.14);color:#4fe0c1}
+  .t-warn{background:rgba(255,180,84,.14);color:var(--warn)}
+  .t-bad{background:rgba(255,107,107,.14);color:var(--bad)}
+  .t-grey{background:rgba(154,163,184,.12);color:var(--mute)}
+  ul{list-style:none}
+  li{font-size:17px;line-height:1.5;color:var(--mute);padding-left:20px;position:relative;margin-bottom:10px}
+  li::before{content:"";position:absolute;left:2px;top:9px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  li.ok::before{background:var(--accent2)}
+  li.no::before{background:var(--bad)}
+  li b,p b,td b{color:var(--ink);font-weight:650}
+  code,.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;font-size:.92em}
+  code{background:#1b2030;border:1px solid #262c3d;border-radius:4px;padding:1px 6px;color:#b9c7ee}
+  table{width:100%;border-collapse:collapse}
+  th{
+    text-align:left;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--dim);font-weight:700;padding:0 14px 10px;border-bottom:1px solid var(--line);
+  }
+  td{
+    font-size:16px;color:var(--mute);padding:13px 14px;
+    border-bottom:1px solid #1b1f2b;vertical-align:top;line-height:1.45;
+  }
+  table.tight td{font-size:15px;padding:8px 14px}
+  .num{font-variant-numeric:tabular-nums}
+  .big{font-size:44px;font-weight:800;letter-spacing:-.03em;color:var(--ink);line-height:1}
+  .big.a{color:var(--accent)}
+  .big.g{color:var(--accent2)}
+  .big.w{color:var(--warn)}
+  .stat-l{font-size:13px;color:var(--dim);margin-top:8px;letter-spacing:.04em}
+  .flow{display:flex;align-items:stretch;gap:12px}
+  .node{
+    flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+    padding:16px;text-align:center;
+  }
+  .node .n-t{font-size:15px;font-weight:700;color:var(--ink)}
+  .node .n-s{font-size:13px;color:var(--dim);margin-top:5px;line-height:1.4}
+  .conn{display:flex;align-items:center;color:var(--dim);font-size:22px;font-weight:300}
+  .lane{display:flex;gap:10px;align-items:stretch;margin-bottom:10px}
+  .lane-h{
+    width:110px;flex:none;font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--dim);font-weight:700;display:flex;align-items:center;
+  }
+  .blk{
+    border-radius:7px;padding:10px 12px;font-size:14px;line-height:1.35;
+    border:1px solid var(--line);background:var(--panel2);color:var(--mute);
+  }
+  .blk b{display:block;color:var(--ink);font-size:14px;margin-bottom:2px}
+  .b-blue{border-color:#2f4a8f;background:rgba(91,140,255,.09)}
+  .b-green{border-color:#1d5f4f;background:rgba(0,211,167,.08)}
+  .b-warn{border-color:#6b4d1f;background:rgba(255,180,84,.08)}
+  .quote{
+    border-left:3px solid var(--accent);padding-left:20px;
+    font-size:21px;line-height:1.5;color:var(--ink);font-weight:500;
+  }
+  .foot{font-size:14px;color:var(--dim);line-height:1.5}
+  .beat{display:flex;gap:16px;align-items:flex-start;margin-bottom:14px}
+  .beat-n{
+    flex:none;width:30px;height:30px;border-radius:50%;
+    background:rgba(91,140,255,.14);color:#8fb0ff;
+    font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  .beat-b{flex:1}
+  .beat-b .say{font-size:17px;color:var(--ink);font-weight:600;line-height:1.4}
+  .beat-b .do{font-size:15px;color:var(--dim);margin-top:3px;line-height:1.45}
+  .pill{
+    display:inline-block;font-size:13px;padding:5px 11px;border-radius:20px;
+    border:1px solid var(--line);color:var(--mute);margin:0 6px 6px 0;background:var(--panel2);
+  }
+  @media print{
+    @page{size:1280px 720px;margin:0}
+    body{background:#0a0b0f;padding:0}
+    .deck{gap:0}
+    .slide{
+      border:none;border-radius:0;box-shadow:none;
+      page-break-after:always;break-after:page;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- 1 -->
+<section class="slide" data-n="01">
+  <div class="grow" style="display:flex;flex-direction:column;justify-content:center">
+    <div class="kicker">Dubai AI Hub · Builder Lab #3 · Voice Agents Hackathon</div>
+    <h1>Sidekick</h1>
+    <p class="lead" style="margin-top:22px">
+      The voice layer for the web that knows <b>what you're looking at</b>
+      and <b>what the rest of the web says about it</b>.
+    </p>
+    <div class="rule" style="max-width:520px"></div>
+    <p class="foot">
+      A Chrome extension. Press a key on any page, talk, and get an answer grounded in
+      live web data — then let it act on the page and keep watching it after you leave.
+    </p>
+  </div>
+  <div class="row" style="gap:12px">
+    <span class="pill">context.dev — live web data in</span>
+    <span class="pill">ElevenLabs — voice + hands</span>
+    <span class="pill">AI coding agents — build it</span>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="slide" data-n="02">
+  <div class="kicker">The brief, restated</div>
+  <h2>Four things are being judged</h2>
+  <p class="lead" style="margin-bottom:26px">Every design decision below traces back to one of these.</p>
+  <div class="grid4 grow">
+    <div class="card">
+      <span class="tag t-blue">Live data</span>
+      <h3>Knows something real</h3>
+      <p>Must pull live web data via context.dev. Not a static knowledge base.</p>
+    </div>
+    <div class="card">
+      <span class="tag t-green">Voice-first</span>
+      <h3>Talks back</h3>
+      <p>ElevenLabs. Interruptible, low latency, actually conversational.</p>
+    </div>
+    <div class="card">
+      <span class="tag t-warn">Agentic eng</span>
+      <h3>Codebase is judged</h3>
+      <p>"Codebase health and how well you steer the tools" — not just the demo.</p>
+    </div>
+    <div class="card">
+      <span class="tag t-grey">Surprise</span>
+      <h3>Not the obvious build</h3>
+      <p>"Paste a URL, get a voice bot" is the example, explicitly <i>not</i> the idea.</p>
+    </div>
+  </div>
+  <div class="rule"></div>
+  <div class="row">
+    <div class="col"><div class="big num">5</div><div class="stat-l">HOURS OF BUILD — 09:30 TO 14:30</div></div>
+    <div class="col"><div class="big num">5</div><div class="stat-l">PEOPLE PER TEAM</div></div>
+    <div class="col"><div class="big num a">50,000</div><div class="stat-l">CONTEXT.DEV CREDITS PER TEAM</div></div>
+    <div class="col"><div class="big num g">4</div><div class="stat-l">PRIZE TRACKS TO COVER</div></div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="slide" data-n="03">
+  <div class="kicker">Honest review of the starting idea</div>
+  <h2>"A B2C extension that makes any app voice-powered"</h2>
+  <div class="grid2 grow" style="margin-top:24px">
+    <div class="card good">
+      <span class="tag t-green">Keep — this is the real insight</span>
+      <ul style="margin-top:6px">
+        <li class="ok"><b>The extension is the moat.</b> It's the only form factor where the agent already sees what the user sees. No URL to paste.</li>
+        <li class="ok"><b>B2C is the right wedge.</b> Zero integration, zero onboarding, works on sites that will never build an assistant.</li>
+        <li class="ok"><b>Voice + a live page is genuinely new.</b> Most voice agents are blind to context; most page assistants are silent.</li>
+      </ul>
+    </div>
+    <div class="card bad">
+      <span class="tag t-bad">Cut — this framing loses</span>
+      <ul style="margin-top:6px">
+        <li class="no"><b>"Voice control any app" has no home for live web data.</b> DOM automation is not web knowledge — you forfeit a whole prize track.</li>
+        <li class="no"><b>"Any app" is unbuildable in 5 hours.</b> A generic DOM-driving agent is fragile and demos badly on stage.</li>
+        <li class="no"><b>It's the crowded lane.</b> Several teams will ship a talking wrapper. Judges asked to be surprised.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="rule"></div>
+  <p class="quote">Keep the form factor. Change the job. Don't <i>control</i> the page — <i>ground</i> it.</p>
+</section>
+
+<!-- 4 -->
+<section class="slide" data-n="04">
+  <div class="kicker">The reframe</div>
+  <h2>Control → Grounding</h2>
+  <div class="grid2 grow" style="margin-top:20px">
+    <div class="card">
+      <span class="tag t-grey">Before</span>
+      <h3 style="font-size:24px;margin:8px 0 14px">"Talk to your apps"</h3>
+      <p>Agent's job is to <b>click things for you</b>. Value = saved clicks. Every site needs its own selectors. Live web data is bolted on, if at all. Fails silently when a DOM changes.</p>
+    </div>
+    <div class="card hi">
+      <span class="tag t-blue">After</span>
+      <h3 style="font-size:24px;margin:8px 0 14px">"Ask the web about this page"</h3>
+      <p>Agent's job is to <b>tell you what this page isn't telling you</b>. Value = an answer you couldn't get by reading. Live web data <i>is</i> the product. Works on any page on day one.</p>
+    </div>
+  </div>
+  <div class="rule"></div>
+  <div class="grid3">
+    <div><div class="big a">Here</div><div class="stat-l">EXTENSION — URL, DOM, SELECTION, WHAT YOU'RE STARING AT</div></div>
+    <div><div class="big g">Everywhere else</div><div class="stat-l">CONTEXT.DEV — COMPETITORS, PRICES, REVIEWS, CHANGES OVER TIME</div></div>
+    <div><div class="big w">Mouth + hands</div><div class="stat-l">ELEVENLABS — SPEAKS THE ANSWER, THEN ACTS ON THE PAGE</div></div>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="slide" data-n="05">
+  <div class="kicker">Product</div>
+  <h2>Four things Sidekick does</h2>
+  <p class="lead" style="margin-bottom:24px">Each one is a different context.dev capability. That's deliberate.</p>
+  <div class="grid2 grow">
+    <div class="card">
+      <span class="tag t-blue">Ground</span>
+      <h3>"Is this actually a good price?"</h3>
+      <p>Extracts the product on the page, pulls the same product from three other sites live, speaks a verdict — and highlights the number in the page as it talks.</p>
+      <p style="margin-top:10px;color:var(--dim);font-size:14px"><code>/v1/web/extract</code> · <code>/v1/web/scrape/markdown</code></p>
+    </div>
+    <div class="card">
+      <span class="tag t-green">Watch</span>
+      <h3>"Tell me if this changes."</h3>
+      <p>Registers a live monitor on the page. When the price, the stock status or the terms move, the agent <b>speaks to you unprompted</b> — even on a different tab.</p>
+      <p style="margin-top:10px;color:var(--dim);font-size:14px">Monitors API · <code>change.detected</code> webhook</p>
+    </div>
+    <div class="card">
+      <span class="tag t-warn">Read</span>
+      <h3>"Just read me this."</h3>
+      <p>Accessibility layer for pages with hostile markup. Clean markdown extraction narrated properly — not a screen reader crawling through nav soup.</p>
+      <p style="margin-top:10px;color:var(--dim);font-size:14px"><code>/v1/web/scrape/markdown</code></p>
+    </div>
+    <div class="card">
+      <span class="tag t-grey">Dress</span>
+      <h3>Looks native on every site</h3>
+      <p>The overlay pulls the current site's real logo, colours and type, so Sidekick renders in the host brand instead of as a foreign box.</p>
+      <p style="margin-top:10px;color:var(--dim);font-size:14px"><code>/v1/brand/retrieve</code> · styleguide extraction</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="slide" data-n="06">
+  <div class="kicker">The demo — 90 seconds, rehearsed</div>
+  <h2>This is the slide that wins or loses</h2>
+  <div class="grow" style="margin-top:20px">
+    <div class="beat"><div class="beat-n">1</div><div class="beat-b">
+      <div class="say">Land on a product page. Hit the hotkey. <i>"Is this a good price?"</i></div>
+      <div class="do">Prefetch already ran on page load — the extraction is warm. Agent answers in about two seconds, and a client tool rings the price in the live DOM while it speaks.</div>
+    </div></div>
+    <div class="beat"><div class="beat-n">2</div><div class="beat-b">
+      <div class="say"><i>"Where's it cheaper?"</i> — interrupt it mid-sentence</div>
+      <div class="do">Interruption is native to the agent loop. Three competitor pages scraped live; a comparison card renders as an overlay in the host site's own brand colours.</div>
+    </div></div>
+    <div class="beat"><div class="beat-n">3</div><div class="beat-b">
+      <div class="say"><i>"Watch this one and tell me if it drops."</i></div>
+      <div class="do">A monitor is created on that URL. Confirmed out loud. The user closes the tab and moves on — the agent does not.</div>
+    </div></div>
+    <div class="beat"><div class="beat-n">4</div><div class="beat-b">
+      <div class="say">The page changes. Sidekick speaks first.</div>
+      <div class="do">Webhook fires into our backend, backend pushes to the extension, the agent says it out loud unprompted: <i>"That listing you were watching just dropped 400 dirhams."</i></div>
+    </div></div>
+    <div class="beat"><div class="beat-n">5</div><div class="beat-b">
+      <div class="say">Switch to a badly-built local site. <i>"Just read me this."</i></div>
+      <div class="do">Closing beat: the same machinery is an accessibility layer for the whole web, not a shopping toy.</div>
+    </div></div>
+  </div>
+  <div class="rule"></div>
+  <p class="quote">Beat 4 is the surprise. An agent that talks to you about a page you already left.</p>
+</section>
+
+<!-- 7 -->
+<section class="slide" data-n="07">
+  <div class="kicker">Architecture</div>
+  <h2>Three processes, one contract</h2>
+  <div class="grow" style="margin-top:20px">
+    <div class="lane">
+      <div class="lane-h">Browser</div>
+      <div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div class="blk b-blue"><b>Content script</b>Reads DOM + selection. Draws highlights and the comparison overlay.</div>
+        <div class="blk b-blue"><b>Offscreen document</b>Holds the mic and the WebRTC session to the agent. Survives tab switches.</div>
+        <div class="blk b-blue"><b>Service worker</b>Hotkey, prefetch-on-navigate, routes push events to the right tab.</div>
+      </div>
+    </div>
+    <div class="lane">
+      <div class="lane-h">Backend</div>
+      <div style="flex:1;display:grid;grid-template-columns:2fr 3fr;gap:10px">
+        <div class="blk b-green"><b>Token minter</b>Issues short-lived conversation tokens. No vendor key ever reaches the browser.</div>
+        <div class="blk b-green"><b>Tool endpoints + warm cache</b>The agent's server tools live here. Every context.dev call is made here, keyed and cached by URL.</div>
+      </div>
+    </div>
+    <div class="lane">
+      <div class="lane-h">Vendors</div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="blk b-warn"><b>ElevenLabs Agents</b>STT + LLM turn loop + TTS. Client tools reach into the page; server tools reach into our backend.</div>
+        <div class="blk b-warn"><b>context.dev</b>extract · scrape/markdown · brand · monitors. Webhook comes back to our backend.</div>
+      </div>
+    </div>
+    <div class="rule"></div>
+    <div class="flow">
+      <div class="node"><div class="n-t">Page load</div><div class="n-s">Prefetch fires<br>before anyone speaks</div></div>
+      <div class="conn">›</div>
+      <div class="node"><div class="n-t">Hotkey</div><div class="n-s">Session opens with page<br>context already injected</div></div>
+      <div class="conn">›</div>
+      <div class="node"><div class="n-t">Speak</div><div class="n-s">Tools resolve against<br>the warm cache</div></div>
+      <div class="conn">›</div>
+      <div class="node"><div class="n-t">Act</div><div class="n-s">Client tools mutate<br>the live page</div></div>
+      <div class="conn">›</div>
+      <div class="node"><div class="n-t">Watch</div><div class="n-s">Monitor outlives<br>the conversation</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="slide" data-n="08">
+  <div class="kicker">The contract</div>
+  <h2>One schema file. Two consumers.</h2>
+  <p class="lead" style="margin-bottom:14px;font-size:19px">
+    Tool definitions live in one shared typed package. The backend validates against it, the agent config is generated from it — so names can't drift apart.
+  </p>
+  <div class="grow">
+    <table class="tight">
+      <thead><tr><th style="width:26%">Tool</th><th style="width:14%">Kind</th><th>What it does</th><th style="width:24%">Backed by</th></tr></thead>
+      <tbody>
+        <tr><td><code>get_page_context</code></td><td><span class="tag t-blue" style="margin:0">client</span></td><td>Returns URL, title, visible text and current selection from the live tab</td><td>DOM, no network</td></tr>
+        <tr><td><code>highlight_element</code></td><td><span class="tag t-blue" style="margin:0">client</span></td><td>Rings a price, a clause, a row — while the agent is talking about it</td><td>DOM, no network</td></tr>
+        <tr><td><code>render_overlay</code></td><td><span class="tag t-blue" style="margin:0">client</span></td><td>Draws the comparison card in the host site's own brand</td><td>DOM + brand data</td></tr>
+        <tr><td><code>compare_offers</code></td><td><span class="tag t-green" style="margin:0">server</span></td><td>Extracts this product, then pulls the same product from other sites live</td><td>extract + scrape</td></tr>
+        <tr><td><code>read_page</code></td><td><span class="tag t-green" style="margin:0">server</span></td><td>Clean markdown of the current page for narration or Q&amp;A</td><td>scrape/markdown</td></tr>
+        <tr><td><code>watch_page</code></td><td><span class="tag t-green" style="margin:0">server</span></td><td>Registers a monitor and tells the user what will trigger it</td><td>monitors</td></tr>
+        <tr><td><code>whats_changed</code></td><td><span class="tag t-green" style="margin:0">server</span></td><td>Replays the diff for a watched page in plain language</td><td>monitor runs</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="foot">Client tools = the agent's hands on <i>this</i> page. Server tools = the agent's eyes on the rest of the web. Nothing else is a tool.</p>
+</section>
+
+<!-- 9 -->
+<section class="slide" data-n="09">
+  <div class="kicker">Measured today, with our own keys</div>
+  <h2>Latency is the whole design</h2>
+  <div class="grid4" style="margin:20px 0 24px">
+    <div class="card"><div class="big num w">3.39s</div><div class="stat-l">COLD SCRAPE — FIRST CALL FOR A URL</div></div>
+    <div class="card"><div class="big num g">0.90s</div><div class="stat-l">WARM SCRAPE — SAME URL AGAIN</div></div>
+    <div class="card"><div class="big num a">~150ms</div><div class="stat-l">SPEECH-TO-TEXT, VENDOR FIGURE</div></div>
+    <div class="card"><div class="big num a">~75ms</div><div class="stat-l">TEXT-TO-SPEECH, VENDOR FIGURE</div></div>
+  </div>
+  <div class="grid3 grow">
+    <div class="card hi">
+      <span class="tag t-blue">Move 1</span>
+      <h3>Prefetch on navigate</h3>
+      <p>The service worker fires the extraction the moment a page loads — long before anyone touches the hotkey. By the time you speak, the answer is a cache read, not a scrape.</p>
+    </div>
+    <div class="card hi">
+      <span class="tag t-blue">Move 2</span>
+      <h3>Speak during the gap</h3>
+      <p>Tools get a spoken pre-roll, so the agent is already saying "let me check that" while the network call is in flight. Dead air is what makes a voice demo feel broken.</p>
+    </div>
+    <div class="card hi">
+      <span class="tag t-blue">Move 3</span>
+      <h3>Answer, then enrich</h3>
+      <p>Cheap answer first from what's already cached; competitor data streams in as a second sentence. Never make the user wait on the slowest call.</p>
+    </div>
+  </div>
+  <div class="rule"></div>
+  <p class="foot">The 3.39s → 0.90s gap isn't a footnote. It's the reason the architecture has a prefetch layer at all, and it's the first thing we'll say when the judges read the code.</p>
+</section>
+
+<!-- 10 -->
+<section class="slide" data-n="10">
+  <div class="kicker">Known traps</div>
+  <h2>What will actually go wrong</h2>
+  <div class="grow" style="margin-top:18px">
+    <table>
+      <thead><tr><th style="width:28%">Risk</th><th style="width:9%">Cost</th><th>Mitigation, decided in advance</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Mic permission in MV3</b><br><span style="font-size:14px;color:var(--dim)">getUserMedia won't work from the popup, and the offscreen document can't prompt for it</span></td>
+          <td><span class="tag t-bad" style="margin:0">1–2h</span></td>
+          <td>Known pattern: a one-time full extension tab requests the mic, then the offscreen document reuses the grant. <b>One person spikes this at 09:30 before anything else.</b> If it isn't working by 11:00, we ship the web-app shell instead — same backend, same agent, zero rework.</td>
+        </tr>
+        <tr>
+          <td><b>Secrets in the client</b><br><span style="font-size:14px;color:var(--dim)">Fastest path is pasting keys into the extension</span></td>
+          <td><span class="tag t-bad" style="margin:0">The prize</span></td>
+          <td>Non-negotiable. Backend mints short-lived tokens; the extension bundle never contains a vendor key. This is the first thing a judge greps for in a codebase review.</td>
+        </tr>
+        <tr>
+          <td><b>Cold-start dead air</b><br><span style="font-size:14px;color:var(--dim)">3.4s of silence reads as "it's broken"</span></td>
+          <td><span class="tag t-warn" style="margin:0">The demo</span></td>
+          <td>Prefetch + spoken pre-roll + answer-then-enrich. Demo runs on pages we've already warmed.</td>
+        </tr>
+        <tr>
+          <td><b>Monitor won't fire on cue</b><br><span style="font-size:14px;color:var(--dim)">Live pages don't change on a schedule</span></td>
+          <td><span class="tag t-warn" style="margin:0">The wow</span></td>
+          <td>We control one page in the demo set and change it ourselves on stage, plus a manual run-now trigger. Real webhook, real diff, real speech — just a change we caused.</td>
+        </tr>
+        <tr>
+          <td><b>Venue wifi</b></td>
+          <td><span class="tag t-warn" style="margin:0">Everything</span></td>
+          <td>Record the demo video by 14:00. Phone hotspot as backup. Cached fixtures so the app still talks with no network.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="slide" data-n="11">
+  <div class="kicker">Build plan — 09:30 to 14:30</div>
+  <h2>Five hours, five people, one integration point</h2>
+  <div class="grow" style="margin-top:18px">
+    <div class="lane"><div class="lane-h">Hour 1</div><div style="flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+      <div class="blk b-warn"><b>Mic spike</b>The permission flow, alone, end to end. Nothing else until it works.</div>
+      <div class="blk b-green"><b>Backend skeleton + token minter</b>Deployed and reachable from a browser, not just localhost.</div>
+      <div class="blk b-blue"><b>Agent configured</b>Prompt, voice, tool stubs. Talking to a hardcoded page before lunch.</div>
+    </div></div>
+    <div class="lane"><div class="lane-h">Hour 2</div><div style="flex:1;display:grid;grid-template-columns:2fr 2fr 1fr;gap:10px">
+      <div class="blk b-green"><b>Server tools + warm cache</b>read_page and compare_offers wired to context.dev, with the cache layer in from the start.</div>
+      <div class="blk b-blue"><b>Content script + client tools</b>Page context out, highlight in.</div>
+      <div class="blk"><b>Demo pages chosen</b>and warmed.</div>
+    </div></div>
+    <div class="lane"><div class="lane-h">Hour 3</div><div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="blk b-blue"><b>First full loop</b>Speak on a real page, get a grounded spoken answer, see the highlight land. This is the moment the project exists.</div>
+      <div class="blk b-green"><b>Overlay + brand data</b>Comparison card in the host site's colours.</div>
+    </div></div>
+    <div class="lane"><div class="lane-h">Hour 4</div><div style="flex:1;display:grid;grid-template-columns:2fr 1fr;gap:10px">
+      <div class="blk b-warn"><b>Monitors + proactive speech</b>watch_page, webhook receiver, push to extension, unprompted voice. The differentiator — and the first thing cut if hour 3 slipped.</div>
+      <div class="blk"><b>Tests</b>on the tool layer.</div>
+    </div></div>
+    <div class="lane"><div class="lane-h">Hour 5</div><div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="blk"><b>Freeze at 13:30</b>No new features after this line.</div>
+      <div class="blk"><b>Rehearse ×3</b>Same pages, same order, timed.</div>
+      <div class="blk"><b>Video + README</b>Submitted by 14:15, not 14:29.</div>
+    </div></div>
+  </div>
+  <div class="rule"></div>
+  <p class="foot"><b>Cut list, in order:</b> brand-styled overlay → accessibility mode → monitors. <b>Never cut:</b> one page, one question, one grounded spoken answer, one visible action on the page.</p>
+</section>
+
+<!-- 12 -->
+<section class="slide" data-n="12">
+  <div class="kicker">They said they're judging the codebase</div>
+  <h2>So the repo is a deliverable, not a byproduct</h2>
+  <div class="grid2 grow" style="margin-top:18px">
+    <div class="card">
+      <span class="tag t-green">What a judge will find</span>
+      <ul style="margin-top:6px">
+        <li class="ok"><b>One typed contract</b> for tool schemas, imported by both the backend and the agent config generator. Names cannot drift.</li>
+        <li class="ok"><b>No key in the client bundle.</b> Greppable, and we'll invite them to grep it.</li>
+        <li class="ok"><b>Tests where the risk is</b> — the tool layer, with recorded vendor fixtures. Not a token test on a helper function.</li>
+        <li class="ok"><b>A README that opens with the architecture</b> and the latency numbers that justified it.</li>
+        <li class="ok"><b>Small, honest commits</b> across five people, not one 4,000-line dump at 14:20.</li>
+      </ul>
+    </div>
+    <div class="card hi">
+      <span class="tag t-blue">How we steer the coding agents</span>
+      <ul style="margin-top:6px">
+        <li><b>Contract first, then fan out.</b> The tool schema is frozen by hand before any agent writes an implementation — that's what makes parallel work merge cleanly.</li>
+        <li><b>One agent per boundary</b> — extension, backend, tools — because the boundaries are already defined.</li>
+        <li><b>The prompts are committed.</b> A short log of what we asked for, what came back wrong, and what we changed. "Best Devin Use" is judged on steering, so we show the steering.</li>
+        <li><b>Humans own the risky hour.</b> The mic spike and the demo script are hand-driven. Agents own the surface area.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="rule"></div>
+  <p class="quote">The team that can explain <i>why</i> the prefetch layer exists beats the team whose demo happened to work.</p>
+</section>
+
+<!-- 13 -->
+<section class="slide" data-n="13">
+  <div class="kicker">Coverage</div>
+  <h2>One build, four prize tracks</h2>
+  <div class="grow" style="margin-top:20px">
+    <table>
+      <thead><tr><th style="width:26%">Track</th><th style="width:36%">What we're actually showing</th><th>Why it's not a checkbox</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Best use of live web data</b></td>
+          <td>Four distinct context.dev capabilities: extract, scrape, brand, <b>monitors</b></td>
+          <td>Monitoring is the one nobody else will find. A voice agent that speaks up because the web changed while you were gone is the strongest possible reading of "knows something real about the world."</td>
+        </tr>
+        <tr>
+          <td><b>Best ElevenLabs project</b></td>
+          <td>Client tools driving the live DOM, interruption mid-answer, unprompted outbound speech</td>
+          <td>Most teams use the voice as an output pipe. We use the agent as the thing with hands — it changes the page it's talking about.</td>
+        </tr>
+        <tr>
+          <td><b>Best agentic engineering</b></td>
+          <td>Frozen contract, parallel agents per boundary, committed prompt log</td>
+          <td>We can show the steering, not just the output. That's the stated bar.</td>
+        </tr>
+        <tr>
+          <td><b>Overall</b></td>
+          <td>A B2C product that works on any page on day one</td>
+          <td>Nothing to integrate, nothing to paste. The judges can install it and point it at their own site during Q&amp;A — and that is the answer to "surprise us."</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 14 -->
+<section class="slide" data-n="14">
+  <div class="kicker">Closing</div>
+  <div class="grow" style="display:flex;flex-direction:column;justify-content:center">
+    <h2 style="font-size:46px;max-width:22ch;line-height:1.1">Every page you visit is missing the context that makes it useful.</h2>
+    <p class="lead" style="margin-top:24px;font-size:24px">
+      Sidekick puts that context one keypress and one sentence away —
+      and keeps watching after you've closed the tab.
+    </p>
+    <div class="rule" style="max-width:560px"></div>
+    <div class="row" style="gap:40px;margin-top:6px">
+      <div><div class="big a">Any page</div><div class="stat-l">NO INTEGRATION, NO URL TO PASTE</div></div>
+      <div><div class="big g">Live web</div><div class="stat-l">GROUNDED, NOT REMEMBERED</div></div>
+      <div><div class="big w">Speaks first</div><div class="stat-l">WHEN THE WORLD CHANGES</div></div>
+    </div>
+  </div>
+  <p class="foot">Dubai AI Hub · Builder Lab #3 · Voice Agents Hackathon · 8 August 2026</p>
+</section>
+
+</div>
+</body>
+</html>

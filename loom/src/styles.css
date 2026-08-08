@@ -1,0 +1,301 @@
+:root {
+  --bg: #07080c;
+  --panel: #0e1017;
+  --panel-2: #141822;
+  --line: #202634;
+  --line-soft: #191e29;
+  --ink: #eef1f7;
+  --mute: #98a2b8;
+  --dim: #656e83;
+  --accent: #5b8cff;
+  --accent-soft: rgba(91, 140, 255, 0.14);
+  --good: #00d3a7;
+  --warn: #ffb454;
+  --bad: #ff6b6b;
+  --r: 10px;
+  --chat-w: 340px;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 15px;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+/* ---------- app shell ---------- */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--chat-w) 1fr;
+  height: 100%;
+}
+
+.chat {
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.canvas {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 32px 32px 64px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.canvas-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.canvas-title {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.canvas-sub {
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .canvas {
+    padding: 24px 20px 48px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .grid > .card {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- cards ---------- */
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 20px;
+  min-width: 0;
+  transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s;
+  animation: rise 0.32s ease both;
+}
+
+.card.focused {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.card-title {
+  font-size: 12px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--dim);
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+/* Primary weight: the chart and table are the artifacts the page is for. */
+.card-primary {
+  background: var(--panel-2);
+}
+
+/* Quiet weight: sources and findings support the primary content, they don't compete with it. */
+.card-quiet {
+  padding: 16px;
+  border-color: var(--line-soft);
+}
+
+.card-quiet .card-title {
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+
+.span-12 { grid-column: span 12; }
+.span-8 { grid-column: span 8; }
+.span-7 { grid-column: span 7; }
+.span-6 { grid-column: span 6; }
+.span-5 { grid-column: span 5; }
+.span-4 { grid-column: span 4; }
+
+/* Caps the chart's plot area so four bars don't render at 500px tall — the SVG keeps
+   its own aspect ratio (preserveAspectRatio defaults to "meet"), it just stops growing. */
+.chart-shell {
+  overflow: hidden;
+}
+
+.chart-shell svg {
+  max-height: 288px;
+}
+
+/* Stat numbers are the loudest thing on the page: distribute the items across the
+   full width instead of stretching two cards into a mostly-empty row. */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 220px));
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.stat-item {
+  min-width: 0;
+}
+
+.stat-value {
+  font-size: 34px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.stat-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.stat-meta {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12.5px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1100px) {
+  .stat-row {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+}
+
+/* ---------- empty state ---------- */
+
+.empty {
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  color: var(--dim);
+}
+
+.empty h2 {
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  max-width: 16ch;
+  line-height: 1.15;
+}
+
+.empty p {
+  max-width: 46ch;
+  line-height: 1.55;
+  font-size: 15px;
+}
+
+.chip {
+  display: inline-block;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--mute);
+  margin: 4px;
+}
+
+/* ---------- misc ---------- */
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.scroll::-webkit-scrollbar {
+  width: 9px;
+}
+.scroll::-webkit-scrollbar-thumb {
+  background: #232a39;
+  border-radius: 9px;
+}
+.canvas::-webkit-scrollbar {
+  width: 9px;
+}
+.canvas::-webkit-scrollbar-thumb {
+  background: #232a39;
+  border-radius: 9px;
+}
